@@ -504,7 +504,8 @@ runSCM <- function(
         retryPerturbSD = retryPerturbSD,
         retrySmallInit = retrySmallInit,
         retryOFVTolerance = retryOFVTolerance,
-        retryFailOnExhaustion = retryFailOnExhaustion
+        retryFailOnExhaustion = retryFailOnExhaustion,
+        rxThreads = effective_rx_threads
       )
       resBck <- backwardSearch(
         pairs,
@@ -526,7 +527,8 @@ runSCM <- function(
         retryPerturbSD = retryPerturbSD,
         retrySmallInit = retrySmallInit,
         retryOFVTolerance = retryOFVTolerance,
-        retryFailOnExhaustion = retryFailOnExhaustion
+        retryFailOnExhaustion = retryFailOnExhaustion,
+        rxThreads = effective_rx_threads
       )
       data <- NULL # release temporary SCM dataset
       summaryTable <- Reduce(rbind, list(resFwd[[2]], resBck[[2]]))
@@ -562,7 +564,8 @@ runSCM <- function(
         retryPerturbSD = retryPerturbSD,
         retrySmallInit = retrySmallInit,
         retryOFVTolerance = retryOFVTolerance,
-        retryFailOnExhaustion = retryFailOnExhaustion
+        retryFailOnExhaustion = retryFailOnExhaustion,
+        rxThreads = effective_rx_threads
       )
       data <- NULL # release temporary SCM dataset
       .printFinalSCMSummary(
@@ -596,7 +599,8 @@ runSCM <- function(
         retryPerturbSD = retryPerturbSD,
         retrySmallInit = retrySmallInit,
         retryOFVTolerance = retryOFVTolerance,
-        retryFailOnExhaustion = retryFailOnExhaustion
+        retryFailOnExhaustion = retryFailOnExhaustion,
+        rxThreads = effective_rx_threads
       )
       data <- NULL # release temporary SCM dataset
       .printFinalSCMSummary(
@@ -2421,7 +2425,8 @@ forwardSearch <- function(
   retryPerturbSD = 0.5,
   retrySmallInit = 0.01,
   retryOFVTolerance = NULL,
-  retryFailOnExhaustion = FALSE
+  retryFailOnExhaustion = FALSE,
+  rxThreads = NULL
 ) {
   if (!inherits(fit, "nlmixr2FitCore")) {
     stop("'fit' needs to be a nlmixr2 fit")
@@ -2712,7 +2717,8 @@ backwardSearch <- function(
   retryPerturbSD = 0.5,
   retrySmallInit = 0.01,
   retryOFVTolerance = NULL,
-  retryFailOnExhaustion = FALSE
+  retryFailOnExhaustion = FALSE,
+  rxThreads = NULL
 ) {
   if (!inherits(fitorig, "nlmixr2FitCore")) {
     stop("'fitorig' needs to be a nlmixr2 fit")
