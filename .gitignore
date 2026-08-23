@@ -56,3 +56,6 @@ scm_step_summary.csv
 
 # Claude Code project files
 .claude/
+
+# git worktrees
+.worktrees/
