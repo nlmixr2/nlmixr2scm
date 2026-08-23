@@ -172,6 +172,12 @@
 #'   attempts are exhausted with an unrealistic OFV, the candidate is marked
 #'   as failed and excluded from the search.  When \code{FALSE} (default) a
 #'   warning is emitted and the best available result is accepted.
+#' @param rxThreads integer, \code{"auto"}, or \code{NULL}; number of
+#'   \code{rxode2} solving threads to use per worker.  When \code{NULL}
+#'   (default), the current \code{rxode2} thread setting is left unchanged.
+#'   \code{"auto"} divides the available cores evenly across \code{workers}.
+#'   Passed to \code{nlmixr2utils::.withWorkerPlan()}, which aborts if
+#'   \code{workers * rxThreads} would exceed the number of available cores.
 #'
 #' @return A list with elements \code{summaryTable} (combined forward and
 #'   backward results), \code{resFwd} (list of final fit and step table from
@@ -245,7 +251,8 @@ runSCM <- function(
   retryPerturbSD = 0.5,
   retrySmallInit = 0.01,
   retryOFVTolerance = NULL,
-  retryFailOnExhaustion = FALSE
+  retryFailOnExhaustion = FALSE,
+  rxThreads = NULL
 ) {
   if (!is.numeric(stats::AIC(fit))) {
     cli::cli_alert_danger(
@@ -474,7 +481,8 @@ runSCM <- function(
     if (is.null(outputDir)) outputDir <- getwd()
   }
 
-  nlmixr2utils::.withWorkerPlan(workers, {
+  effective_rx_threads <- nlmixr2utils::resolveRxThreads(workers, rxThreads)
+  nlmixr2utils::.withWorkerPlan(workers, rxThreads = effective_rx_threads, {
     # nolint: object_usage_linter.
     if (searchType == "scm") {
       resFwd <- forwardSearch(

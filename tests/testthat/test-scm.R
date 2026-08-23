@@ -1485,6 +1485,58 @@ test_that("runSCM: future plan restored to original after workers=1", {
   expect_equal(class(future::plan()), plan_orig)
 })
 
+test_that("runSCM: rxThreads is appended as the last formal (positional compatibility)", {
+  # Confirms rxThreads was appended, not inserted after workers -- an
+  # existing positional caller passing arguments past `workers` (e.g.
+  # `confirm`) must still bind to the same parameters as before.
+  scm_formals <- names(formals(runSCM))
+  expect_equal(scm_formals[length(scm_formals)], "rxThreads")
+  expect_true(which(scm_formals == "workers") < which(scm_formals == "confirm"))
+})
+
+test_that("runSCM: prints the exact effective workers/rxThreads console numbers", {
+  skip_if_not_installed("rxode2")
+  withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
+  base_fit <- .fit_base()
+
+  expect_message(
+    suppressWarnings(runSCM(
+      fit = base_fit,
+      pairsVec = list(list(var = "cl", covar = "WT", shapes = "power")),
+      searchType = "forward",
+      saveModels = FALSE,
+      workers = 1L,
+      rxThreads = 3L
+    )),
+    "threads / worker.*3"
+  )
+})
+
+test_that("runSCM: workers * rxThreads exceeding cores aborts (mocked core count)", {
+  skip_if_not_installed("future")
+  skip_if_not_installed("rxode2")
+  withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
+  base_fit <- .fit_base()
+
+  testthat::local_mocked_bindings(
+    .resolveTotalCores = function() 4L,
+    .package = "nlmixr2utils"
+  )
+
+  expect_error(
+    suppressMessages(runSCM(
+      fit = base_fit,
+      pairsVec = list(list(var = "cl", covar = "WT", shapes = "power")),
+      searchType = "forward",
+      saveModels = FALSE,
+      workers = 2L,
+      rxThreads = 3L
+    ))
+  )
+})
+
 # =============================================================================
 # .expandShapes — auto-scaled bounds for lin / log / identity
 # =============================================================================
