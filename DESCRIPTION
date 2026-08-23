@@ -33,7 +33,7 @@ Imports:
     lotri,
     nlme,
     nlmixr2est (>= 5.0.0),
-    nlmixr2utils,
+    nlmixr2utils (>= 0.3),
     rxode2 (>= 5.0.0),
     utils
 Suggests:

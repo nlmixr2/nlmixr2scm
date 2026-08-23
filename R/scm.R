@@ -172,12 +172,21 @@
 #'   attempts are exhausted with an unrealistic OFV, the candidate is marked
 #'   as failed and excluded from the search.  When \code{FALSE} (default) a
 #'   warning is emitted and the best available result is accepted.
-#' @param rxThreads integer, \code{"auto"}, or \code{NULL}; number of
-#'   \code{rxode2} solving threads to use per worker.  When \code{NULL}
-#'   (default), the current \code{rxode2} thread setting is left unchanged.
-#'   \code{"auto"} divides the available cores evenly across \code{workers}.
-#'   Passed to \code{nlmixr2utils::.withWorkerPlan()}, which aborts if
-#'   \code{workers * rxThreads} would exceed the number of available cores.
+#' @param rxThreads integer, \code{"auto"}, or \code{NULL}; number of rxode2
+#'   OpenMP threads to use per worker while fitting candidate models.  When
+#'   \code{NULL} (default), the current \code{rxode2::getRxThreads()} value
+#'   is used and applied consistently to every worker.  \code{"auto"}
+#'   divides the total core count evenly across the effective number of
+#'   workers.  Whenever more than one worker is involved, \code{workers *
+#'   rxThreads} must not exceed the machine's core count -- \code{runSCM()}
+#'   aborts with an explanatory error before any fitting starts if it
+#'   would, since each parallel worker is a separate process that runs its
+#'   own independent rxode2 thread pool.  A single worker is never subject
+#'   to this check.  Note this means an existing \code{workers > 1} or
+#'   \code{workers = "auto"} call that does not also set \code{rxThreads}
+#'   may now abort where it previously ran silently oversubscribed; set
+#'   \code{rxThreads} explicitly (e.g. \code{rxThreads = 1}) to restore the
+#'   prior behavior.
 #'
 #' @return A list with elements \code{summaryTable} (combined forward and
 #'   backward results), \code{resFwd} (list of final fit and step table from
