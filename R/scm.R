@@ -1891,7 +1891,8 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
   retryPerturbSD = 0.5,
   retrySmallInit = 0.01,
   effective_tolerance = 0,
-  retryFailOnExhaustion = FALSE
+  retryFailOnExhaustion = FALSE,
+  rxThreads = NULL
 ) {
   raw_results <- nlmixr2utils::.plap(
     # nolint: object_usage_linter.
@@ -2304,6 +2305,7 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
 
       list(var = nam_var, covar = nam_covar, fit = x, stats = stats)
     },
+    rxThreads = rxThreads,
     .label = function(i) {
       sh <- if (
         "shape" %in%
@@ -2533,7 +2535,8 @@ forwardSearch <- function(
       retryPerturbSD = retryPerturbSD,
       retrySmallInit = retrySmallInit,
       effective_tolerance = effective_tolerance,
-      retryFailOnExhaustion = retryFailOnExhaustion
+      retryFailOnExhaustion = retryFailOnExhaustion,
+      rxThreads = rxThreads
     )
     if (length(results) == 0) {
       break
@@ -2935,7 +2938,8 @@ backwardSearch <- function(
       retryPerturbSD = retryPerturbSD,
       retrySmallInit = retrySmallInit,
       effective_tolerance = effective_tolerance,
-      retryFailOnExhaustion = retryFailOnExhaustion
+      retryFailOnExhaustion = retryFailOnExhaustion,
+      rxThreads = rxThreads
     )
     if (length(results) == 0) {
       break

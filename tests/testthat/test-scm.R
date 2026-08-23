@@ -1537,6 +1537,137 @@ test_that("runSCM: workers * rxThreads exceeding cores aborts (mocked core count
   )
 })
 
+test_that("runSCM: rxThreads propagates to .fitCandidatePairs() via the forward path", {
+  skip_if_not_installed("rxode2")
+  one.cmt <- function() {
+    ini({
+      tka <- 0.45
+      tcl <- log(c(0, 2.7, 100))
+      tv <- 3.45
+      eta.ka ~ 0.6
+      eta.cl ~ 0.3
+      eta.v ~ 0.1
+      add.sd <- 0.7
+    })
+    model({
+      ka <- exp(tka + eta.ka)
+      cl <- exp(tcl + eta.cl)
+      v <- exp(tv + eta.v)
+      linCmt() ~ add(add.sd)
+    })
+  }
+  suppressMessages(suppressWarnings(
+    fit <- nlmixr2est::nlmixr2(
+      one.cmt,
+      nlmixr2data::theo_sd,
+      est = "focei",
+      control = list(print = 0, eval.max = 10)
+    )
+  ))
+
+  target <- 3L
+  seen <- new.env()
+  seen$threads <- NULL
+  # local_mocked_bindings replaces the real nlmixr2utils::.plap() -- which
+  # dispatches candidate fits in parallel and would need real threading
+  # infra to test end-to-end -- with a serial spy that still calls the real
+  # FUN for each candidate (so .fitCandidatePairs() gets genuine per-candidate
+  # results and completes normally) while recording the rxThreads argument
+  # it was called with. Returning bare list() here (as originally sketched)
+  # makes raw_results empty, which trips .fitCandidatePairs()'s own
+  # `if (length(results) == 0L) stop(...)` before the test ever reaches the
+  # assertion below -- so the spy must forward to FUN via lapply() instead.
+  testthat::local_mocked_bindings(
+    .plap = function(X, FUN, ..., rxThreads = NULL, .label = NULL) {
+      seen$threads <- rxThreads
+      lapply(X, FUN)
+    },
+    .package = "nlmixr2utils"
+  )
+
+  runSCM(
+    fit,
+    varsVec = c("ka"),
+    covarsVec = c("WT"),
+    confirm = FALSE,
+    saveModels = FALSE,
+    searchType = "forward",
+    workers = 1L,
+    rxThreads = target
+  )
+
+  expect_equal(seen$threads, target)
+})
+
+test_that("runSCM: rxThreads propagates to .fitCandidatePairs() via the backward path", {
+  skip_if_not_installed("rxode2")
+  one.cmt <- function() {
+    ini({
+      tka <- 0.45
+      tcl <- log(c(0, 2.7, 100))
+      tv <- 3.45
+      eta.ka ~ 0.6
+      eta.cl ~ 0.3
+      eta.v ~ 0.1
+      add.sd <- 0.7
+    })
+    model({
+      ka <- exp(tka + eta.ka)
+      cl <- exp(tcl + eta.cl)
+      v <- exp(tv + eta.v)
+      linCmt() ~ add(add.sd)
+    })
+  }
+  suppressMessages(suppressWarnings(
+    fit <- nlmixr2est::nlmixr2(
+      one.cmt,
+      nlmixr2data::theo_sd,
+      est = "focei",
+      control = list(print = 0, eval.max = 10)
+    )
+  ))
+
+  target <- 3L
+  seen <- new.env()
+  seen$threads <- NULL
+  # See the forward-path test above for why the spy must forward to FUN via
+  # lapply() rather than return bare list().
+  testthat::local_mocked_bindings(
+    .plap = function(X, FUN, ..., rxThreads = NULL, .label = NULL) {
+      seen$threads <- rxThreads
+      lapply(X, FUN)
+    },
+    .package = "nlmixr2utils"
+  )
+
+  # searchType = "backward" with includedRelations gives backwardSearch()
+  # candidates to test independently of any forward step, so its own
+  # .fitCandidatePairs()/.plap() call is guaranteed to execute.
+  #
+  # NOTE: unlike the plan's original sketch, varsVec/covarsVec are also
+  # supplied here (matching the forward test's relation). runSCM() always
+  # builds its top-level `pairs` via buildPairs(varsVec, covarsVec, pairsVec)
+  # regardless of searchType (see R/scm.R ~L299-306), and buildPairs() errors
+  # ("provide either pairsVec or both varsVec and covarsVec") when all three
+  # are NULL -- includedRelations alone is not enough to reach
+  # .fitCandidatePairs(). This mirrors the existing "runSCM: backward-only
+  # returns expected list structure" test's pattern of supplying the same
+  # relation via both channels.
+  runSCM(
+    fit,
+    varsVec = c("ka"),
+    covarsVec = c("WT"),
+    includedRelations = list(list(var = "ka", covar = "WT")),
+    confirm = FALSE,
+    saveModels = FALSE,
+    searchType = "backward",
+    workers = 1L,
+    rxThreads = target
+  )
+
+  expect_equal(seen$threads, target)
+})
+
 # =============================================================================
 # .expandShapes — auto-scaled bounds for lin / log / identity
 # =============================================================================
