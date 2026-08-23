@@ -1539,31 +1539,9 @@ test_that("runSCM: workers * rxThreads exceeding cores aborts (mocked core count
 
 test_that("runSCM: rxThreads propagates to .fitCandidatePairs() via the forward path", {
   skip_if_not_installed("rxode2")
-  one.cmt <- function() {
-    ini({
-      tka <- 0.45
-      tcl <- log(c(0, 2.7, 100))
-      tv <- 3.45
-      eta.ka ~ 0.6
-      eta.cl ~ 0.3
-      eta.v ~ 0.1
-      add.sd <- 0.7
-    })
-    model({
-      ka <- exp(tka + eta.ka)
-      cl <- exp(tcl + eta.cl)
-      v <- exp(tv + eta.v)
-      linCmt() ~ add(add.sd)
-    })
-  }
-  suppressMessages(suppressWarnings(
-    fit <- nlmixr2est::nlmixr2(
-      one.cmt,
-      nlmixr2data::theo_sd,
-      est = "focei",
-      control = list(print = 0, eval.max = 10)
-    )
-  ))
+  withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
+  base_fit <- .fit_base()
 
   target <- 3L
   seen <- new.env()
@@ -1586,8 +1564,8 @@ test_that("runSCM: rxThreads propagates to .fitCandidatePairs() via the forward 
   )
 
   runSCM(
-    fit,
-    varsVec = c("ka"),
+    base_fit,
+    varsVec = c("cl"),
     covarsVec = c("WT"),
     confirm = FALSE,
     saveModels = FALSE,
@@ -1601,31 +1579,9 @@ test_that("runSCM: rxThreads propagates to .fitCandidatePairs() via the forward 
 
 test_that("runSCM: rxThreads propagates to .fitCandidatePairs() via the backward path", {
   skip_if_not_installed("rxode2")
-  one.cmt <- function() {
-    ini({
-      tka <- 0.45
-      tcl <- log(c(0, 2.7, 100))
-      tv <- 3.45
-      eta.ka ~ 0.6
-      eta.cl ~ 0.3
-      eta.v ~ 0.1
-      add.sd <- 0.7
-    })
-    model({
-      ka <- exp(tka + eta.ka)
-      cl <- exp(tcl + eta.cl)
-      v <- exp(tv + eta.v)
-      linCmt() ~ add(add.sd)
-    })
-  }
-  suppressMessages(suppressWarnings(
-    fit <- nlmixr2est::nlmixr2(
-      one.cmt,
-      nlmixr2data::theo_sd,
-      est = "focei",
-      control = list(print = 0, eval.max = 10)
-    )
-  ))
+  withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
+  base_fit <- .fit_base()
 
   target <- 3L
   seen <- new.env()
@@ -1654,10 +1610,10 @@ test_that("runSCM: rxThreads propagates to .fitCandidatePairs() via the backward
   # returns expected list structure" test's pattern of supplying the same
   # relation via both channels.
   runSCM(
-    fit,
-    varsVec = c("ka"),
+    base_fit,
+    varsVec = c("cl"),
     covarsVec = c("WT"),
-    includedRelations = list(list(var = "ka", covar = "WT")),
+    includedRelations = list(list(var = "cl", covar = "WT")),
     confirm = FALSE,
     saveModels = FALSE,
     searchType = "backward",
