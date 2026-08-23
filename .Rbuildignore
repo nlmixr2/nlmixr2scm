@@ -4,3 +4,7 @@
 ^LICENSE$
 ^\.positai$
 ^\.claude$
+^docs$
+^scm_all_candidates\.csv$
+^scm_log\.txt$
+^scm_step_summary\.csv$

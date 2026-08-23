@@ -10,6 +10,8 @@
 
 * Fixed forward and backward winner selection in `runSCM()` to break ties on `deltObjf` instead of row order. For `df = 1`, `dOFV >= ~70.5` underflows `1 - pchisq()` to exactly `0` (forward) or `1` (backward), so several strong candidates could tie on `pchisqr`; `which.min()`/`which.max()` then silently picked whichever candidate happened to sort first rather than the one with the largest (forward) or smallest (backward) OFV change.
 
+* Fixed `runSCM()` erroring on every candidate ("numbers of columns of arguments do not match") against current `rxode2`/`nlmixr2est`, which added a `prior` column to `iniDf`. The internal `.rebuildUiFromPairs()` and `.builduiCovariate()` helpers hardcoded the `iniDf` column set when adding a covariate theta row; they now pad the new row to match `iniDf`'s actual columns instead.
+
 # nlmixr2scm 0.2
 
 * Yaping Liu added as package co-author.

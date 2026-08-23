@@ -1,7 +1,5 @@
 library(nlmixr2utils)
 
-skip_on_cran()
-
 .cur <- loadNamespace("nlmixr2scm")
 
 test_that("SCM helper functions remain internal-only", {
@@ -1163,6 +1161,7 @@ skip_if_not_installed("nlmixr2data")
 
 test_that("runSCM: forward-only returns expected list structure", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   res <- runSCM(
     fit = base_fit,
@@ -1179,6 +1178,7 @@ test_that("runSCM: forward-only returns expected list structure", {
 
 test_that("runSCM: backward-only returns expected list structure", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   res <- runSCM(
     fit = base_fit,
@@ -1194,6 +1194,7 @@ test_that("runSCM: backward-only returns expected list structure", {
 
 test_that("runSCM: full SCM returns forward and backward results", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   res <- runSCM(
     fit = base_fit,
@@ -1210,6 +1211,7 @@ test_that("runSCM: full SCM returns forward and backward results", {
 test_that("runSCM: saveModels=FALSE creates no output directory", {
   td <- withr::local_tempdir(clean = TRUE)
   withr::local_dir(td)
+  skip_on_cran()
   base_fit <- .fit_base()
   n_before <- length(list.dirs(td, recursive = FALSE))
   runSCM(
@@ -1226,6 +1228,7 @@ test_that("runSCM: saveModels=FALSE creates no output directory", {
 test_that("runSCM: saveModels=TRUE writes log and CSV files", {
   td <- withr::local_tempdir(clean = TRUE)
   withr::local_dir(td)
+  skip_on_cran()
   base_fit <- .fit_base()
   runSCM(
     fit = base_fit,
@@ -1244,6 +1247,7 @@ test_that("runSCM: saveModels=TRUE writes log and CSV files", {
 
 test_that("runSCM: summaryTable has expected columns", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   res <- runSCM(
     fit = base_fit,
@@ -1269,6 +1273,7 @@ test_that("runSCM: summaryTable has expected columns", {
 
 test_that("runSCM: user-supplied control object accepted", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   ctrl <- nlmixr2est::foceiControl(print = 0, calcTables = TRUE)
   expect_no_error(
@@ -1285,6 +1290,7 @@ test_that("runSCM: user-supplied control object accepted", {
 
 test_that("runSCM: inits with bounds run without error", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   expect_no_error(
     runSCM(
@@ -1300,6 +1306,7 @@ test_that("runSCM: inits with bounds run without error", {
 
 test_that("runSCM: per-pair shapes via pairsVec respected", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   res <- runSCM(
     fit = base_fit,
@@ -1319,6 +1326,7 @@ test_that("runSCM: per-pair shapes via pairsVec respected", {
 test_that("runSCM: restart=TRUE backs up existing outputDir", {
   td <- withr::local_tempdir(clean = TRUE)
   withr::local_dir(td)
+  skip_on_cran()
   base_fit <- .fit_base()
 
   # First run — create the directory
@@ -1351,6 +1359,7 @@ test_that("runSCM: restart=TRUE backs up existing outputDir", {
 
 test_that("runSCM: multiple pairs tested simultaneously", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   res <- runSCM(
     fit = base_fit,
@@ -1368,6 +1377,7 @@ test_that("runSCM: multiple pairs tested simultaneously", {
 test_that("runSCM: explicit outputDir used as absolute path", {
   td <- withr::local_tempdir(clean = TRUE)
   out_dir <- file.path(td, "my_scm_output")
+  skip_on_cran()
   base_fit <- .fit_base()
   runSCM(
     fit = base_fit,
@@ -1388,6 +1398,7 @@ test_that("runSCM: explicit outputDir used as absolute path", {
 
 test_that("runSCM: workers=1 returns same structure as workers=NULL", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
 
   res_default <- runSCM(
@@ -1413,6 +1424,7 @@ test_that("runSCM: workers=1 returns same structure as workers=NULL", {
 
 test_that("runSCM: workers=1 forward+backward both respect parameter", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
 
   res <- runSCM(
@@ -1440,6 +1452,7 @@ test_that("runSCM: workers='auto' runs without error", {
     "Package loaded via load_all(); install first to run multisession test"
   )
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
 
   expect_no_error(
@@ -1456,6 +1469,7 @@ test_that("runSCM: workers='auto' runs without error", {
 test_that("runSCM: future plan restored to original after workers=1", {
   skip_if_not_installed("future")
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   plan_orig <- class(future::plan())
   on.exit(future::plan("sequential"), add = TRUE)
@@ -1649,6 +1663,7 @@ test_that("runSCM: accepts new retry parameters without error (smoke)", {
 
 test_that("runSCM: maxRetries=0 disables retry (parameter accepted, no error)", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   expect_no_error(
     runSCM(
@@ -1664,6 +1679,7 @@ test_that("runSCM: maxRetries=0 disables retry (parameter accepted, no error)", 
 
 test_that("runSCM: maxDeltaOFV passed through without error", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   expect_no_error(
     runSCM(
@@ -1679,6 +1695,7 @@ test_that("runSCM: maxDeltaOFV passed through without error", {
 
 test_that("runSCM: retryOFVTolerance=0 passed through without error", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   expect_no_error(
     runSCM(
@@ -1698,6 +1715,7 @@ test_that("runSCM: retryOFVTolerance=0 passed through without error", {
 # =============================================================================
 
 test_that(".fitCandidatePairs: braces in failure reason do not crash cli", {
+  skip_on_cran()
   base_fit <- .fit_base()
   bad <- data.frame(
     var = "cl", covar = "wt{x}", covExpr = "WT", shape = "power",
@@ -1719,6 +1737,7 @@ test_that(".fitCandidatePairs: braces in failure reason do not crash cli", {
 
 test_that("runSCM: backward-removed covariates labeled 'dropped' in summaryTable", {
   withr::local_tempdir(clean = TRUE)
+  skip_on_cran()
   base_fit <- .fit_base()
   # Backward-only: pre-include WT~cl so it can be tested for removal
   res <- runSCM(
@@ -1831,6 +1850,8 @@ test_that("enrichPairs medians are overridden by .applyFixedCenters", {
   expect_equal(fixed$center[fixed$raw_col == "CrCL"], 95)
   # ... unnamed BMI keeps the data-driven median
   expect_equal(fixed$center[fixed$raw_col == "BMI"],  27)
+})
+
 # .pickForwardWinner / .pickBackwardWinner — winner-selection tie-breaking
 # -----------------------------------------------------------------------------
 # For df = 1 any dOFV >= ~70.5 makes 1 - pchisq() underflow to exactly 0, so
@@ -1892,6 +1913,8 @@ test_that(".pickBackwardWinner: p == 1 tie broken by smallest deltObjf", {
     deltObjf = c(3.0, 0.4)
   )
   expect_equal(.cur$.pickBackwardWinner(rt), 2L)          # CrCL raises OFV least
+})
+
 # Retry-exhaustion best-attempt tracking
 #
 # .fitCandidatePairs() must keep the BEST (largest-dObjf) attempt across

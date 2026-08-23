@@ -1936,7 +1936,7 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
 
       orig_cov_init <- cov_init
 
-      # Build ctx_df once — context pairs do not change between retry attempts
+      # Build ctx_df once -- context pairs do not change between retry attempts
       ctx_df <- if (!is.null(context_pairs) && nrow(context_pairs) > 0) {
         data.frame(
           var    = context_pairs$var,
@@ -2093,7 +2093,7 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
 
         # For backward elimination the unrealistic-OFV criteria are not applied:
         # removing a significant covariate legitimately produces a large OFV
-        # increase (pchisqr ≈ 0), which would incorrectly trigger criterion 2.
+        # increase (pchisqr approximately 0), which would incorrectly trigger criterion 2.
         # Backward steps always accept the first converged result.
         if (!add) {
           loop_result <- list(x = x, dObjf = dObjf, dof = dof, pchisqr = pchisqr)

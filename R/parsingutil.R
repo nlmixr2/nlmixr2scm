@@ -5,15 +5,15 @@
 #' multiplied by the covariate theta: \code{cov_theta * covExpr}.
 #'
 #' \describe{
-#'   \item{power}{  \code{log(col/center)} — power/allometric scaling;
+#'   \item{power}{  \code{log(col/center)} -- power/allometric scaling;
 #'     on the exponentiated scale this gives
 #'     \code{baseline * (col/center)^theta}.}
-#'   \item{lin}{    \code{(col - center)} — linear on the log scale
+#'   \item{lin}{    \code{(col - center)} -- linear on the log scale
 #'     (exponential in natural scale);
 #'     \code{baseline * exp(theta * (col - center))}.}
-#'   \item{log}{    \code{log(col)} — uncentered log transform.}
-#'   \item{identity}{\code{col} — raw covariate on the log scale.}
-#'   \item{cat}{    \code{col_level} — pre-computed 0/1 indicator column
+#'   \item{log}{    \code{log(col)} -- uncentered log transform.}
+#'   \item{identity}{\code{col} -- raw covariate on the log scale.}
+#'   \item{cat}{    \code{col_level} -- pre-computed 0/1 indicator column
 #'     (e.g. \code{sex_male}).  The column must already exist in the dataset,
 #'     typically created during SCM categorical preprocessing.  The theta multiplies
 #'     this indicator directly on the log scale, giving mu-referencing
@@ -143,7 +143,7 @@
       lc <- abs(log(abs(center)))
       if (lc < .Machine$double.eps) {
         cli::cli_warn(c(
-          "!" = "Cannot auto-scale 'log' bounds{if (nzchar(label)) paste0(' for ', label) else ''}: |log(center)| ≈ 0 (center ≈ 1).",
+          "!" = "Cannot auto-scale 'log' bounds{if (nzchar(label)) paste0(' for ', label) else ''}: |log(center)| is approximately 0 (center is approximately 1).",
           "i" = "Using unscaled defaults."
         ))
         return(.parseInitSpec(NULL))
@@ -347,7 +347,11 @@
       stringsAsFactors = FALSE
     )
   })
-  .ini <- rbind(.iniDf, do.call(rbind, new_ini_rows))
+  new_rows <- do.call(rbind, new_ini_rows)
+  # rxode2/nlmixr2est occasionally add columns to iniDf (e.g. "prior"); pad
+  # rather than hardcode the full column set so new columns don't break rbind.
+  for (col in setdiff(names(.iniDf), names(new_rows))) new_rows[[col]] <- NA
+  .ini <- rbind(.iniDf, new_rows[, names(.iniDf), drop = FALSE])
   .ini <- as.expression(lotri::as.lotri(.ini))
   .ini[[1]] <- quote(`ini`)
 
@@ -846,23 +850,24 @@ scmAddOrRemoveCovariate <- function(
     ))
     nthetaLength <- length(which(!is.na(ui$iniDf$ntheta)))
     .ini <- ui$iniDf
-    .ini <- rbind(
-      .ini,
-      data.frame(
-        ntheta = as.integer(nthetaLength + 1),
-        neta1 = NA_character_,
-        neta2 = NA_character_,
-        name = covName,
-        lower = lower,
-        est = init,
-        upper = upper,
-        fix = FALSE,
-        label = NA_character_,
-        backTransform = NA_character_,
-        condition = NA_character_,
-        err = NA_character_
-      )
+    new_row <- data.frame(
+      ntheta = as.integer(nthetaLength + 1),
+      neta1 = NA_character_,
+      neta2 = NA_character_,
+      name = covName,
+      lower = lower,
+      est = init,
+      upper = upper,
+      fix = FALSE,
+      label = NA_character_,
+      backTransform = NA_character_,
+      condition = NA_character_,
+      err = NA_character_
     )
+    # rxode2/nlmixr2est occasionally add columns to iniDf (e.g. "prior"); pad
+    # rather than hardcode the full column set so new columns don't break rbind.
+    for (col in setdiff(names(.ini), names(new_row))) new_row[[col]] <- NA
+    .ini <- rbind(.ini, new_row[, names(.ini), drop = FALSE])
   } else {
     # remove covariate
     lst <- scmAddOrRemoveCovariate(ui, varName, covariate, add = FALSE)

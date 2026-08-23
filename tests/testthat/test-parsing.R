@@ -1,6 +1,5 @@
 library(nlmixr2utils)
 
-skip_on_cran()
 # ==== getThetaName
 
 .cur <- loadNamespace("nlmixr2scm")
