@@ -1,3 +1,22 @@
+# nlmixr2scm 0.4
+
+* `runSCM()` gained an `rxThreads` argument (appended as the last
+  parameter, to preserve positional-call compatibility) giving explicit,
+  independent control over the number of rxode2 OpenMP threads used per
+  parallel `workers` process. Whenever more than one worker is involved,
+  `workers * rxThreads` is checked against the machine's physical core
+  count before any candidate fitting starts, and the call aborts with an
+  explanatory error if it would be exceeded -- each parallel worker runs
+  its own independent rxode2 thread pool, so an unconstrained combination
+  could otherwise request far more OS threads than the machine has. A
+  single worker is never subject to this check. Requires `nlmixr2utils (>=
+  0.3)`.
+* **Breaking change:** an existing `runSCM(workers = N, ...)` call with `N
+  > 1` (or `workers = "auto"`) that does not also set `rxThreads` may now
+  abort on most multi-core machines, where it previously ran silently
+  oversubscribed. Set `rxThreads` explicitly (e.g. `rxThreads = 1`) to
+  restore the prior behavior.
+
 # nlmixr2scm 0.3
 
 * Changed `dOFV` sign convention: `dOFV` is now reported as `candidate OFV − reference OFV` uniformly for both forward and backward steps. A negative value indicates an OFV improvement (forward addition), a positive value indicates an OFV increase (backward removal). Previously the sign was flipped so that `dOFV` was always positive for "meaningful" changes, which was internally convenient but inconsistent with the standard pharmacometric interpretation. The `maxDeltaOFV` retry criterion now compares against `|dOFV|`.
