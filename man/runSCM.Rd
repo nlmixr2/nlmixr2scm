@@ -36,7 +36,8 @@ runSCM(
   retryPerturbSD = 0.5,
   retrySmallInit = 0.01,
   retryOFVTolerance = NULL,
-  retryFailOnExhaustion = FALSE
+  retryFailOnExhaustion = FALSE,
+  rxThreads = NULL
 )
 }
 \arguments{
@@ -243,6 +244,13 @@ for SAEM (stochastic noise), \code{0} for all other estimators.}
 attempts are exhausted with an unrealistic OFV, the candidate is marked
 as failed and excluded from the search.  When \code{FALSE} (default) a
 warning is emitted and the best available result is accepted.}
+
+\item{rxThreads}{integer, \code{"auto"}, or \code{NULL}; number of
+\code{rxode2} solving threads to use per worker.  When \code{NULL}
+(default), the current \code{rxode2} thread setting is left unchanged.
+\code{"auto"} divides the available cores evenly across \code{workers}.
+Passed to \code{nlmixr2utils::.withWorkerPlan()}, which aborts if
+\code{workers * rxThreads} would exceed the number of available cores.}
 }
 \value{
 A list with elements \code{summaryTable} (combined forward and
