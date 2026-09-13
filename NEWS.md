@@ -1,5 +1,10 @@
 # nlmixr2scm 0.4
 
+* Fixed: `runSCM()` wrote `scm_log.txt`, `scm_step_summary.csv` and
+  `scm_all_candidates.csv` into the current working directory even when
+  called with `saveModels = FALSE`. Those report files are now written only
+  when `saveModels = TRUE`, so `saveModels = FALSE` leaves the working
+  directory untouched.
 * `runSCM()` gained an `rxThreads` argument (appended as the last
   parameter, to preserve positional-call compatibility) giving explicit,
   independent control over the number of rxode2 OpenMP threads used per

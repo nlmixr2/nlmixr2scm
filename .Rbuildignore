@@ -4,7 +4,11 @@
 ^LICENSE$
 ^\.positai$
 ^\.claude$
+^\.worktrees$
+^cran-comments\.md$
 ^docs$
-^scm_all_candidates\.csv$
-^scm_log\.txt$
-^scm_step_summary\.csv$
+^vignettes/runSCM\.Rmd\.orig$
+^vignettes/precompute\.R$
+scm_all_candidates\.csv$
+scm_log\.txt$
+scm_step_summary\.csv$

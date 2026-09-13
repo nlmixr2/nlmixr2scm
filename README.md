@@ -83,8 +83,13 @@ argument reference and further tips for a robust search.
 
 ## Installation
 
-The package is in early testing and is not yet on CRAN. Install the development version from GitHub together with
-`nlmixr2utils`.
+Install the released version from CRAN:
+
+```r
+install.packages("nlmixr2scm")
+```
+
+Or the development version from GitHub, together with `nlmixr2utils`:
 
 ```r
 remotes::install_github("nlmixr2/nlmixr2utils")

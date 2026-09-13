@@ -195,10 +195,10 @@
 #' @export
 #' @author Vipul Mann, Matthew Fidler, Vishal Sarsani, Justin Wilkins
 #'
-#' @examples
-#' \dontrun{
-#' library(nlmixr2utils)
-#'
+#' @examplesIf requireNamespace("nlmixr2data", quietly = TRUE)
+#' \donttest{
+#' # Fitting the base model and running even a one-pair search takes longer
+#' # than a few seconds, so this example is wrapped in \donttest{}.
 #' one.cmt <- function() {
 #'   ini({
 #'     tka <- 0.45
@@ -220,13 +220,23 @@
 #'   })
 #' }
 #'
-#' fit <- nlmixr2(one.cmt, nlmixr2data::theo_sd, est = "saem", control = list(print = 0))
-#' auto1 <- runSCM(fit, varsVec = c("ka", "cl"), covarsVec = c("WT"))
-#'
-#' # Specify exact pairs instead of all combinations:
-#' auto2 <- runSCM(fit,
-#'   pairsVec = list(list(var = "cl", covar = "WT"), list(var = "ka", covar = "WT"))
+#' fit <- nlmixr2est::nlmixr2(
+#'   one.cmt, nlmixr2data::theo_sd,
+#'   est = "focei", control = nlmixr2est::foceiControl(print = 0)
 #' )
+#'
+#' # Test one parameter-covariate pair.  saveModels = FALSE keeps the search
+#' # from writing anything to disk.
+#' res <- runSCM(fit,
+#'   pairsVec = list(list(var = "cl", covar = "WT", shapes = "power")),
+#'   searchType = "forward",
+#'   saveModels = FALSE,
+#'   confirm = FALSE,
+#'   print = 0,
+#'   workers = 1L,
+#'   rxThreads = 2L
+#' )
+#' res$summaryTable
 #' }
 runSCM <- function(
   fit,
@@ -490,6 +500,10 @@ runSCM <- function(
     if (is.null(outputDir)) outputDir <- getwd()
   }
 
+  # The placeholder above is the user's working directory, which must never be
+  # written to.  Report files are emitted only when saveModels = TRUE.
+  reportDir <- if (saveModels) outputDir else NULL
+
   effective_rx_threads <- nlmixr2utils::resolveRxThreads(workers, rxThreads)
   nlmixr2utils::.withWorkerPlan(workers, rxThreads = effective_rx_threads, {
     # nolint: object_usage_linter.
@@ -545,7 +559,7 @@ runSCM <- function(
         summaryTable,
         finalFit = resBck[[1]],
         searchType = searchType,
-        outputDir = outputDir,
+        outputDir = reportDir,
         metadata = list(
           baseFit = fit,
           pVal = pVal,
@@ -581,7 +595,7 @@ runSCM <- function(
         resFwd[[2]],
         finalFit = resFwd[[1]],
         searchType = searchType,
-        outputDir = outputDir,
+        outputDir = reportDir,
         metadata = list(
           baseFit = fit,
           pVal = pVal,
@@ -616,7 +630,7 @@ runSCM <- function(
         resBck[[2]],
         finalFit = resBck[[1]],
         searchType = searchType,
-        outputDir = outputDir,
+        outputDir = reportDir,
         metadata = list(
           baseFit = fit,
           pVal = pVal,

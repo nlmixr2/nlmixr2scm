@@ -2,9 +2,8 @@ Package: nlmixr2scm
 Title: Stepwise Covariate Modeling for 'nlmixr2' Models
 Version: 0.4
 Authors@R: c(
-    person("Justin", "Wilkins", email = "justin.wilkins@occams.com", role = c("aut", "cre"),
+    person("Justin", "Wilkins", email = "justin.wilkins@occams.com", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0002-7099-9396")),
-    person("Yuan", "Liu", email = "ypliu@umich.edu", role = "aut"),
     person("Matthew", "Fidler", email = "matthew.fidler@gmail.com", role = "aut",
            comment = c(ORCID = "0000-0001-8538-6691")),
     person("Yaping", "Liu", email = "ypliu@umich.edu", role = "aut",
@@ -16,13 +15,19 @@ Authors@R: c(
            comment = c(ORCID = "0000-0002-9272-3438")),
     person("Christian", "Bartels", email = "christian.bartels@novartis.com", role = "ctb")
   )
-Maintainer: Justin Wilkins <justin.wilkins@occams.com>
-Description: Stepwise covariate modeling tools for nlmixr2 fits, including
-    forward inclusion and backward elimination workflows, covariate model
-    construction helpers, categorical covariate expansion, cached resume
-    support, and SCM reporting utilities.
+Description: Stepwise covariate modeling (SCM) for nonlinear mixed-effects
+    models fitted with 'nlmixr2'. Forward inclusion and backward elimination
+    are driven by likelihood-ratio tests, and the covariate terms are
+    generated inside the model body, so continuous covariates are centered
+    and categorical covariates expanded into indicator columns without
+    editing the model by hand. Candidate fits can be cached and resumed,
+    fitted in parallel, and reviewed through per-step and all-candidate
+    summary tables. The approach follows Jonsson and Karlsson (1998)
+    <doi:10.1023/A:1011970125687>, and the implementation in
+    'Perl-speaks-NONMEM' described by Lindbom, Ribbing and Jonsson (2004)
+    <doi:10.1016/j.cmpb.2003.11.003>.
 Depends:
-    R (>= 4.0)
+    R (>= 4.1)
 License: GPL (>= 3)
 URL: https://github.com/nlmixr2/nlmixr2scm
 BugReports: https://github.com/nlmixr2/nlmixr2scm/issues
@@ -32,9 +37,11 @@ Imports:
     data.table,
     lotri,
     nlme,
-    nlmixr2est (>= 5.0.0),
+    nlmixr2est (>= 7.0.0),
     nlmixr2utils (>= 0.3),
     rxode2 (>= 5.0.0),
+    stats,
+    tools,
     utils
 Suggests:
     future,
@@ -48,4 +55,4 @@ VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
+Config/roxygen2/version: 8.1.0

@@ -17,12 +17,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Justin Wilkins \email{justin.wilkins@occams.com} (\href{https://orcid.org/0000-0002-7099-9396}{ORCID})
+\strong{Maintainer}: Justin Wilkins \email{justin.wilkins@occams.com} (\href{https://orcid.org/0000-0002-7099-9396}{ORCID}) [copyright holder]
 
 Authors:
 \itemize{
-  \item Justin Wilkins \email{justin.wilkins@occams.com} (\href{https://orcid.org/0000-0002-7099-9396}{ORCID})
-  \item Yuan Liu \email{ypliu@umich.edu}
+  \item Justin Wilkins \email{justin.wilkins@occams.com} (\href{https://orcid.org/0000-0002-7099-9396}{ORCID}) [copyright holder]
   \item Matthew Fidler \email{matthew.fidler@gmail.com} (\href{https://orcid.org/0000-0001-8538-6691}{ORCID})
   \item Yaping Liu \email{ypliu@umich.edu} (\href{https://orcid.org/0009-0009-2842-3797}{ORCID})
   \item Bill Denney \email{wdenney@humanpredictions.com} (\href{https://orcid.org/0000-0002-5759-428X}{ORCID})
