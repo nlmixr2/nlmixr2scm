@@ -2000,28 +2000,29 @@ test_that("enrichPairs medians are overridden by .applyFixedCenters", {
 # several genuinely-strong forward candidates tie at pchisqr == 0.  The old
 # which.min(pchisqr) then returned the FIRST row (alphabetical covar order),
 # which could pick a weaker covariate over a much stronger, collinear one and
-# steer the search into a wrong-shape branch.  The tie-break now prefers the
-# largest deltObjf (biggest OFV drop) forward, and the smallest deltObjf (least
-# OFV increase on removal) backward.
+# steer the search into a wrong-shape branch.  deltObjf is candidate minus
+# reference OFV, so the tie-break prefers the most negative deltObjf (biggest
+# OFV drop) forward, and the smallest deltObjf (least OFV increase on removal)
+# backward.
 # =============================================================================
 
 test_that(".pickForwardWinner: distinct p-values pick the smallest (unchanged behaviour)", {
   rt <- data.frame(
     covar    = c("BW", "CrCL"),
     pchisqr  = c(1e-3, 1e-6),
-    deltObjf = c(20, 40)
+    deltObjf = c(-20, -40)
   )
   # smallest pchisqr is row 2; ties never engaged
   expect_equal(.cur$.pickForwardWinner(rt), 2L)
 })
 
-test_that(".pickForwardWinner: p-value underflow tie broken by largest deltObjf", {
+test_that(".pickForwardWinner: p-value underflow tie broken by largest OFV drop", {
   # Both true covariates underflow to pchisqr == 0; alphabetical order puts BW
-  # first, but CrCL has the larger dOFV and must win.
+  # first, but CrCL has the larger OFV drop (most negative dOFV) and must win.
   rt <- data.frame(
     covar    = c("BW", "CrCL", "SEX"),
     pchisqr  = c(0, 0, 1e-7),
-    deltObjf = c(90.35, 183.05, 27.74)
+    deltObjf = c(-90.35, -183.05, -27.74)
   )
   expect_equal(.cur$.pickForwardWinner(rt), 2L)          # CrCL, dOFV 183
   expect_equal(rt$covar[.cur$.pickForwardWinner(rt)], "CrCL")
@@ -2031,7 +2032,7 @@ test_that(".pickForwardWinner: full tie (equal pchisqr AND deltObjf) is determin
   rt <- data.frame(
     covar    = c("BW", "CrCL"),
     pchisqr  = c(0, 0),
-    deltObjf = c(100, 100)
+    deltObjf = c(-100, -100)
   )
   expect_equal(.cur$.pickForwardWinner(rt), 1L)
 })
@@ -2059,8 +2060,9 @@ test_that(".pickBackwardWinner: p == 1 tie broken by smallest deltObjf", {
 
 # Retry-exhaustion best-attempt tracking
 #
-# .fitCandidatePairs() must keep the BEST (largest-dObjf) attempt across
-# perturbed-init retries, not whichever attempt happened to run last.
+# .fitCandidatePairs() must keep the BEST attempt across perturbed-init
+# retries, not whichever attempt happened to run last.  dObjf is candidate
+# minus parent OFV, so "best" is the SMALLEST dObjf (lowest candidate OFV).
 #
 # The selection rule is INLINED inside .fitCandidatePairs() because that loop
 # runs in future.apply workers spawned by .plap(); workers load the installed
@@ -2073,51 +2075,50 @@ test_that(".pickBackwardWinner: p == 1 tie broken by smallest deltObjf", {
 # .fitCandidatePairs():
 #
 #   if (is.null(best_attempt) ||
-#       .cand_attempt$dObjf > best_attempt$dObjf) {
+#       .cand_attempt$dObjf < best_attempt$dObjf) {
 #     best_attempt <- .cand_attempt
 #   }
 .update_best_attempt <- function(best, candidate) {
-  if (is.null(best) || candidate$dObjf > best$dObjf) candidate else best
+  if (is.null(best) || candidate$dObjf < best$dObjf) candidate else best
 }
 
 test_that("retry tracking: first attempt becomes best when no incumbent", {
-  cand <- list(x = "a", dObjf = -250, dof = 1L, pchisqr = 1, attempt_num = 1L)
+  cand <- list(x = "a", dObjf = 250, dof = 1L, pchisqr = 1, attempt_num = 1L)
   expect_identical(.update_best_attempt(NULL, cand), cand)
 })
 
-test_that("retry tracking: candidate with larger dObjf replaces incumbent", {
-  best <- list(x = "a", dObjf = -250, dof = 1L, pchisqr = 1, attempt_num = 1L)
-  cand <- list(x = "b", dObjf =   -1, dof = 1L, pchisqr = 1, attempt_num = 2L)
+test_that("retry tracking: candidate with lower OFV (smaller dObjf) replaces incumbent", {
+  best <- list(x = "a", dObjf = 250, dof = 1L, pchisqr = 1, attempt_num = 1L)
+  cand <- list(x = "b", dObjf =   1, dof = 1L, pchisqr = 1, attempt_num = 2L)
   expect_identical(.update_best_attempt(best, cand), cand)
 })
 
-test_that("retry tracking: candidate with smaller dObjf keeps incumbent", {
-  best <- list(x = "a", dObjf =  -1, dof = 1L, pchisqr = 1, attempt_num = 1L)
-  cand <- list(x = "b", dObjf = -100, dof = 1L, pchisqr = 1, attempt_num = 2L)
+test_that("retry tracking: candidate with higher OFV (larger dObjf) keeps incumbent", {
+  best <- list(x = "a", dObjf =   1, dof = 1L, pchisqr = 1, attempt_num = 1L)
+  cand <- list(x = "b", dObjf = 100, dof = 1L, pchisqr = 1, attempt_num = 2L)
   expect_identical(.update_best_attempt(best, cand), best)
 })
 
 test_that("retry tracking: ties resolve to incumbent (no churn)", {
-  best <- list(x = "a", dObjf = -50, dof = 1L, pchisqr = 1, attempt_num = 1L)
-  cand <- list(x = "b", dObjf = -50, dof = 1L, pchisqr = 1, attempt_num = 2L)
+  best <- list(x = "a", dObjf = 50, dof = 1L, pchisqr = 1, attempt_num = 1L)
+  cand <- list(x = "b", dObjf = 50, dof = 1L, pchisqr = 1, attempt_num = 2L)
   expect_identical(.update_best_attempt(best, cand), best)
 })
 
-test_that("retry tracking: regression -- last attempt with smaller dObjf does not overwrite best", {
-  # Bug scenario from the SEX_1~cl retry chain: three attempts produce
-  # dObjf = -250, -1, -100.  The original .fitCandidatePairs() unconditionally
-  # kept the LAST attempt (-100), even though the per-attempt warning correctly
-  # claimed "best available".  The current implementation tracks the running
-  # best, so attempt 2 (-1) survives.
+test_that("retry tracking: regression -- last attempt with higher OFV does not overwrite best", {
+  # Bug scenario from the SEX_1~cl retry chain: three attempts land ABOVE the
+  # parent OFV by 250, 1 and 100.  The original .fitCandidatePairs()
+  # unconditionally kept the LAST attempt (+100), even though the per-attempt
+  # warning claimed "best available".  The running best is attempt 2 (+1).
   b <- NULL
-  b <- .update_best_attempt(b, list(x = "att1", dObjf = -250, dof = 1L,
+  b <- .update_best_attempt(b, list(x = "att1", dObjf = 250, dof = 1L,
                                     pchisqr = 1, attempt_num = 1L))
-  b <- .update_best_attempt(b, list(x = "att2", dObjf =   -1, dof = 1L,
+  b <- .update_best_attempt(b, list(x = "att2", dObjf =   1, dof = 1L,
                                     pchisqr = 1, attempt_num = 2L))
-  b <- .update_best_attempt(b, list(x = "att3", dObjf = -100, dof = 1L,
+  b <- .update_best_attempt(b, list(x = "att3", dObjf = 100, dof = 1L,
                                     pchisqr = 1, attempt_num = 3L))
   expect_equal(b$x, "att2")
-  expect_equal(b$dObjf, -1)
+  expect_equal(b$dObjf, 1)
   expect_equal(b$attempt_num, 2L)
 })
 
@@ -2126,15 +2127,16 @@ test_that("retry tracking: regression -- last attempt with smaller dObjf does no
 # -----------------------------------------------------------------------------
 # The forward search can stall when the derivative-free outer optimiser
 # (bobyqa) never steps a new covariate coefficient off its init, leaving the
-# nested model with a WORSE OFV than its parent (dObjf <= 0) -- mathematically
-# impossible at a true optimum.  Observed for ODE models whose FOCEi objective
+# nested model no better than its parent (dObjf >= -stallTol, where dObjf is
+# candidate minus parent OFV) -- mathematically impossible at a true optimum.  Observed for ODE models whose FOCEi objective
 # carries solver noise; the true per-step subproblem is unimodal, so a single
 # 1-D FOCEi profile init rescues it.
 #
 # The rescue lives at the END of the .fitCandidatePairs() retry loop so it
 # fires INDEPENDENTLY of maxRetries -- in particular it must still fire when
 # maxRetries = 0 (the benchmark config).  It keeps the profile-init refit ONLY
-# when it STRICTLY improves dObjf, so it can never make a candidate worse.
+# when it STRICTLY lowers the candidate OFV, so it can never make a candidate
+# worse.
 # =============================================================================
 
 test_that("runSCM: profileInitOnStall / stallTol parameters exist with expected defaults", {
@@ -2155,5 +2157,42 @@ test_that(".fitCandidatePairs / forwardSearch: profile-on-stall parameters threa
                 info = paste0(fn, " lacks profileInitOnStall"))
     expect_true("stallTol" %in% names(fmls),
                 info = paste0(fn, " lacks stallTol"))
+  }
+})
+
+test_that("runSCM: forward deltObjf is candidate minus parent OFV, and improving candidates are not rescued", {
+  # Regression: after dOFV became candidate - reference (0.3), the stall check
+  # and rescue still used the old "positive = improvement" sign, so EVERY
+  # improving forward candidate was treated as stalled, refitted, and stored
+  # with a flipped sign.
+  skip_on_cran()
+  withr::local_tempdir(clean = TRUE)
+  base_fit <- .fit_base()
+  rescues <- character()
+  res <- withCallingHandlers(
+    runSCM(
+      fit = base_fit,
+      pairsVec = list(list(var = "cl", covar = "WT", shapes = "power"),
+                      list(var = "v",  covar = "WT", shapes = "power")),
+      searchType = "forward",
+      saveModels = FALSE,
+      print = 0,
+      workers = 1L,
+      confirm = FALSE
+    ),
+    message = function(m) {
+      if (grepl("rescue", conditionMessage(m))) {
+        rescues <<- c(rescues, conditionMessage(m))
+      }
+      invokeRestart("muffleMessage")
+    }
+  )
+  step1 <- res$summaryTable[res$summaryTable$step == 1, , drop = FALSE]
+  expect_equal(step1$deltObjf, step1$objf - base_fit$objf, tolerance = 1e-6)
+  improving <- step1[step1$deltObjf < 0, , drop = FALSE]
+  expect_gt(nrow(improving), 0L)
+  for (pair in sprintf("%s ~ %s", improving$covar, improving$var)) {
+    expect_false(any(grepl(pair, rescues, fixed = TRUE)),
+                 info = paste(pair, "improved on its parent but was rescued"))
   }
 })

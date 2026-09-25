@@ -2137,7 +2137,8 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
         }
 
         # Selection rule: candidate wins on the first attempt (best is NULL)
-        # or when its dObjf strictly exceeds the incumbent; ties keep the
+        # or when its dObjf (candidate - parent OFV) is strictly below the
+        # incumbent's, i.e. it reached a lower OFV; ties keep the
         # incumbent.  Without this tracker, the exhaustion branch silently
         # kept whichever attempt happened to be last -- under perturbed-init
         # retries that was the best only by coincidence.  The corresponding
@@ -2147,7 +2148,7 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
           attempt_num = attempt + 1L
         )
         if (is.null(best_attempt) ||
-            .cand_attempt$dObjf > best_attempt$dObjf) {
+            .cand_attempt$dObjf < best_attempt$dObjf) {
           best_attempt <- .cand_attempt
         }
 
@@ -2219,17 +2220,18 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
       # -- Profile-on-stall rescue (forward path only) ----------------------
       # Independent of the retry budget: runs AFTER the retry loop so it fires
       # even when maxRetries = 0 (the fast benchmark setting).  A forward
-      # candidate whose accepted fit still stalled -- dObjf <= stallTol, i.e.
-      # the nested model is no better than its parent, which is impossible at a
+      # candidate whose accepted fit still stalled -- OFV improvement
+      # (-dObjf) <= stallTol, i.e. the nested model is no better than its
+      # parent, which is impossible at a
       # true optimum -- means the outer optimiser never moved the covariate off
       # its init.  We run ONE frozen 1-D .profileCovInit() (all other thetas
       # fixed, BSV fixed-but-present) to obtain a basin-correct coefficient,
       # then refit the full candidate from that init.  The rescue result is
-      # kept ONLY if it strictly improves dObjf, so it can never make a
-      # candidate worse.  Healthy candidates (dObjf > stallTol, e.g. analytic
+      # kept ONLY if it strictly lowers dObjf, so it can never make a
+      # candidate worse.  Healthy candidates (-dObjf > stallTol, e.g. analytic
       # linCmt fits) skip this entirely and pay no cost.
       if (add && isTRUE(profileInitOnStall) &&
-          is.finite(dObjf) && dObjf <= stallTol) {
+          is.finite(dObjf) && -dObjf <= stallTol) {
         prof_val <- tryCatch(
           .profileCovInit(
             base_ui   = base_ui,
@@ -2267,12 +2269,12 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
           )
           if (!is.null(x_p) && !isTRUE(x_p$.failed) &&
               !is.null(x_p$objf) && is.finite(x_p$objf)) {
-            dObjf_p <- fit$objf - x_p$objf
-            if (is.finite(dObjf_p) && dObjf_p > dObjf) {
+            dObjf_p <- x_p$objf - fit$objf
+            if (is.finite(dObjf_p) && dObjf_p < dObjf) {
               dof_p <- length(x_p$finalUiEnv$ini$est) -
                 length(fit$finalUiEnv$ini$est)
-              pchisqr_p <- if (dObjf_p > 0) {
-                1 - stats::pchisq(dObjf_p, df = dof_p)
+              pchisqr_p <- if (dObjf_p < 0) {
+                1 - stats::pchisq(-dObjf_p, df = dof_p)
               } else {
                 1
               }
@@ -2401,7 +2403,8 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
 #' Winner = most significant candidate (smallest p-value). For \code{df = 1}
 #' any \code{dOFV >= ~70.5} makes \code{1 - pchisq()} underflow to exactly 0,
 #' so several strong candidates tie at \code{pchisqr == 0}. Such ties are
-#' broken by the LARGEST \code{deltObjf} (biggest OFV drop) rather than by row
+#' broken by the most negative \code{deltObjf} (candidate minus reference OFV,
+#' i.e. the biggest OFV drop) rather than by row
 #' order, which would otherwise pick the first candidate alphabetically.
 #'
 #' @param resTable candidate results table with \code{pchisqr} and
@@ -2409,7 +2412,7 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
 #' @return integer row index of the winning candidate
 #' @noRd
 .pickForwardWinner <- function(resTable) {
-  order(resTable$pchisqr, -resTable$deltObjf)[1]
+  order(resTable$pchisqr, resTable$deltObjf)[1]
 }
 
 #' Pick the backward-search candidate to drop
@@ -2568,7 +2571,7 @@ forwardSearch <- function(
     resTable <- do.call(rbind, lapply(results, `[[`, "stats"))
     # Winner = most significant candidate (smallest p-value). Ties at
     # pchisqr == 0 (p-value underflow for strong candidates) are broken by the
-    # largest deltObjf; see .pickForwardWinner().
+    # most negative deltObjf (biggest OFV drop); see .pickForwardWinner().
     bestIdx <- .pickForwardWinner(resTable)
     bestRow <- resTable[bestIdx, , drop = FALSE]
 

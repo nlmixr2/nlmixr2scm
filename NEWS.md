@@ -1,3 +1,19 @@
+# nlmixr2scm (development version)
+
+* Fixed the forward search mixing two `dOFV` sign conventions. Since 0.3,
+  `dOFV` is `candidate OFV - reference OFV` (negative = improvement), but the
+  profile-on-stall rescue, retry best-attempt tracking and p-value tie-break
+  still assumed the pre-0.3 "positive = improvement" sign. As a result:
+  * every improving forward candidate was treated as stalled and refitted
+    (roughly tripling forward-search run time), and the rescue refit was
+    accepted even when it reached a worse OFV than the original fit;
+  * rescued candidates were reported with a flipped `deltObjf` sign, so
+    `summaryTable` and the printed "Ref OFV" column were inconsistent;
+  * when all retries were exhausted, the attempt with the highest OFV was
+    kept instead of the lowest;
+  * p-value underflow ties were broken in favour of the smallest OFV drop
+    instead of the largest.
+
 # nlmixr2scm 0.4
 
 * Fixed: `runSCM()` wrote `scm_log.txt`, `scm_step_summary.csv` and
