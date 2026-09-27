@@ -1171,7 +1171,8 @@ test_that("runSCM: forward-only returns expected list structure", {
     workers = 1L
   )
   expect_type(res, "list")
-  expect_named(res, c("summaryTable", "resFwd", "resBck"))
+  expect_named(res, c("summaryTable", "resFwd", "resBck", "baseFit", "options", "outputDir"))
+  expect_s3_class(res, "nlmixr2scm")
   expect_null(res$resBck)
   expect_type(res$resFwd, "list")
 })
@@ -1188,7 +1189,8 @@ test_that("runSCM: backward-only returns expected list structure", {
     includedRelations = list(list(var = "cl", covar = "WT", shapes = "power")),
     workers = 1L
   )
-  expect_named(res, c("summaryTable", "resFwd", "resBck"))
+  expect_named(res, c("summaryTable", "resFwd", "resBck", "baseFit", "options", "outputDir"))
+  expect_s3_class(res, "nlmixr2scm")
   expect_null(res$resFwd)
 })
 
@@ -1203,7 +1205,8 @@ test_that("runSCM: full SCM returns forward and backward results", {
     saveModels = FALSE,
     workers = 1L
   )
-  expect_named(res, c("summaryTable", "resFwd", "resBck"))
+  expect_named(res, c("summaryTable", "resFwd", "resBck", "baseFit", "options", "outputDir"))
+  expect_s3_class(res, "nlmixr2scm")
   expect_type(res$resFwd, "list")
   expect_type(res$resBck, "list")
 })
@@ -1438,7 +1441,8 @@ test_that("runSCM: workers=1 forward+backward both respect parameter", {
     workers = 1L
   )
 
-  expect_named(res, c("summaryTable", "resFwd", "resBck"))
+  expect_named(res, c("summaryTable", "resFwd", "resBck", "baseFit", "options", "outputDir"))
+  expect_s3_class(res, "nlmixr2scm")
   expect_type(res$resFwd, "list")
   expect_type(res$resBck, "list")
 })
@@ -1488,12 +1492,12 @@ test_that("runSCM: future plan restored to original after workers=1", {
   expect_equal(class(future::plan()), plan_orig)
 })
 
-test_that("runSCM: rxThreads is appended as the last formal (positional compatibility)", {
-  # Confirms rxThreads was appended, not inserted after workers -- an
+test_that("runSCM: rxThreads and retryOnUnderflow are appended last (positional compatibility)", {
+  # Confirms new arguments were appended, not inserted after workers -- an
   # existing positional caller passing arguments past `workers` (e.g.
   # `confirm`) must still bind to the same parameters as before.
   scm_formals <- names(formals(runSCM))
-  expect_equal(scm_formals[length(scm_formals)], "rxThreads")
+  expect_equal(tail(scm_formals, 2), c("rxThreads", "retryOnUnderflow"))
   expect_true(which(scm_formals == "workers") < which(scm_formals == "confirm"))
 })
 
@@ -1755,6 +1759,40 @@ test_that(".isUnrealisticOFV: p-value underflow triggers TRUE (criterion 2)", {
     x_objf = 100, ref_objf = 470, dObjf = -370,
     pchisqr = 0, maxDeltaOFV = Inf, effective_tolerance = 0
   ))
+})
+
+test_that(".isUnrealisticOFV: p-value underflow ignored when retryOnUnderflow = FALSE", {
+  expect_false(.cur$.isUnrealisticOFV(
+    x_objf = 100, ref_objf = 470, dObjf = -370,
+    pchisqr = 0, maxDeltaOFV = Inf, effective_tolerance = 0,
+    retryOnUnderflow = FALSE
+  ))
+})
+
+test_that(".isUnrealisticOFV: retryOnUnderflow = FALSE leaves other criteria active", {
+  # criterion 1: OFV above parent
+  expect_true(.cur$.isUnrealisticOFV(
+    x_objf = 480, ref_objf = 470, dObjf = 10,
+    pchisqr = 1, maxDeltaOFV = Inf, effective_tolerance = 0,
+    retryOnUnderflow = FALSE
+  ))
+  # criterion 3: |dObjf| above maxDeltaOFV, even with an underflowed p-value
+  expect_true(.cur$.isUnrealisticOFV(
+    x_objf = 100, ref_objf = 470, dObjf = -370,
+    pchisqr = 0, maxDeltaOFV = 200, effective_tolerance = 0,
+    retryOnUnderflow = FALSE
+  ))
+})
+
+test_that("retryOnUnderflow is threaded through with default TRUE", {
+  for (fn in c("runSCM", "forwardSearch", ".fitCandidatePairs")) {
+    fmls <- formals(.cur[[fn]])
+    expect_true("retryOnUnderflow" %in% names(fmls),
+                info = paste0(fn, " lacks retryOnUnderflow"))
+    expect_true(isTRUE(eval(fmls$retryOnUnderflow)), info = fn)
+  }
+  # appended last so existing positional calls are unaffected
+  expect_equal(tail(names(formals(.cur$runSCM)), 1), "retryOnUnderflow")
 })
 
 test_that(".isUnrealisticOFV: pchisqr just above .Machine$double.eps is FALSE", {

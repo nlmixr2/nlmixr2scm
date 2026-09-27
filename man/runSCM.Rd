@@ -37,7 +37,8 @@ runSCM(
   retrySmallInit = 0.01,
   retryOFVTolerance = NULL,
   retryFailOnExhaustion = FALSE,
-  rxThreads = NULL
+  rxThreads = NULL,
+  retryOnUnderflow = TRUE
 )
 }
 \arguments{
@@ -260,11 +261,24 @@ to this check.  Note this means an existing \code{workers > 1} or
 may now abort where it previously ran silently oversubscribed; set
 \code{rxThreads} explicitly (e.g. \code{rxThreads = 1}) to restore the
 prior behavior.}
+
+\item{retryOnUnderflow}{logical; when \code{TRUE} (default), a forward
+candidate whose p-value underflows to (effectively) zero is treated as an
+unrealistic OFV and retried.  For \code{df = 1} this happens whenever
+the OFV drops by more than about 70, so genuinely strong covariate
+effects are also retried.  Set to \code{FALSE} to skip this criterion
+and save the extra fits; the OFV-increase and \code{maxDeltaOFV}
+criteria still apply.}
 }
 \value{
-A list with elements \code{summaryTable} (combined forward and
-backward results), \code{resFwd} (list of final fit and step table from
-forward search), and \code{resBck} (same for backward search).
+An object of class \code{"nlmixr2scm"}: a list with elements
+\code{summaryTable} (combined forward and backward results),
+\code{resFwd} (list of final fit and step table from forward search),
+\code{resBck} (same for backward search), \code{baseFit} (the base
+model fit), \code{options} (the settings used for the search) and
+\code{outputDir} (where models and report files were saved, or
+\code{NULL} when \code{saveModels = FALSE}).  Use \code{summary()} for
+a human-readable report; see \code{\link{summary.nlmixr2scm}}.
 }
 \description{
 Stepwise Covariate Model-selection (SCM) method

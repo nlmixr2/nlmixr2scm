@@ -163,6 +163,7 @@ reference a covariate column — otherwise `nlme::getData(fit)` may drop it.
 | `retrySmallInit` | `0.01` | Near-zero covariate theta init used on even-numbered retries |
 | `retryOFVTolerance` | `NULL` | Margin by which candidate OFV must exceed the parent before retrying; auto-detected (`10` for SAEM, `0` otherwise) when `NULL` |
 | `retryFailOnExhaustion` | `FALSE` | Exclude a candidate as failed (instead of accepting the best retry) when all retries are exhausted |
+| `retryOnUnderflow` | `TRUE` | Treat a p-value underflow (OFV drop above ~70 at `df = 1`) as unrealistic and retry; set `FALSE` to skip the extra fits for genuinely strong effects |
 
 ---
 
@@ -226,7 +227,22 @@ scm <- runSCM(
 
 ### 6. Interpreting the results
 
-`runSCM()` returns a named list with three elements:
+`runSCM()` returns an object of class `"nlmixr2scm"`. Printing it gives a short
+overview:
+
+```{r print-scm}
+scm
+```
+
+`summary()` gives the full human-readable report: the options used for the search, a
+comparison of the base, final forward and final backward models, the step and
+all-candidate tables, and where models and report files were saved on disk:
+
+```{r summary-scm}
+summary(scm)
+```
+
+Underneath, the result is a named list:
 
 ```{r return-structure}
 names(scm)
@@ -440,7 +456,10 @@ when its fit produces an implausible OFV — using a perturbed or near-zero cova
 init on alternate attempts — before falling back to the best attempt seen (or, with
 `retryFailOnExhaustion = TRUE`, excluding the candidate as failed). Stochastic
 estimators (SAEM) get a wider tolerance automatically to avoid spurious retries from
-Monte Carlo noise.
+Monte Carlo noise. A p-value that underflows to zero also counts as
+implausible by default, which means genuinely strong effects (an OFV drop above about
+70 for one parameter) are retried too; set `retryOnUnderflow = FALSE` to skip those
+extra fits.
 
 **Categorical covariates**: pass `catvarsVec` rather than pre-creating dummy columns.
 `runSCM()` handles level detection, reference-level selection, and indicator column

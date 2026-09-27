@@ -187,10 +187,22 @@
 #'   may now abort where it previously ran silently oversubscribed; set
 #'   \code{rxThreads} explicitly (e.g. \code{rxThreads = 1}) to restore the
 #'   prior behavior.
+#' @param retryOnUnderflow logical; when \code{TRUE} (default), a forward
+#'   candidate whose p-value underflows to (effectively) zero is treated as an
+#'   unrealistic OFV and retried.  For \code{df = 1} this happens whenever
+#'   the OFV drops by more than about 70, so genuinely strong covariate
+#'   effects are also retried.  Set to \code{FALSE} to skip this criterion
+#'   and save the extra fits; the OFV-increase and \code{maxDeltaOFV}
+#'   criteria still apply.
 #'
-#' @return A list with elements \code{summaryTable} (combined forward and
-#'   backward results), \code{resFwd} (list of final fit and step table from
-#'   forward search), and \code{resBck} (same for backward search).
+#' @return An object of class \code{"nlmixr2scm"}: a list with elements
+#'   \code{summaryTable} (combined forward and backward results),
+#'   \code{resFwd} (list of final fit and step table from forward search),
+#'   \code{resBck} (same for backward search), \code{baseFit} (the base
+#'   model fit), \code{options} (the settings used for the search) and
+#'   \code{outputDir} (where models and report files were saved, or
+#'   \code{NULL} when \code{saveModels = FALSE}).  Use \code{summary()} for
+#'   a human-readable report; see \code{\link{summary.nlmixr2scm}}.
 #'
 #' @export
 #' @author Vipul Mann, Matthew Fidler, Vishal Sarsani, Justin Wilkins
@@ -271,7 +283,8 @@ runSCM <- function(
   retrySmallInit = 0.01,
   retryOFVTolerance = NULL,
   retryFailOnExhaustion = FALSE,
-  rxThreads = NULL
+  rxThreads = NULL,
+  retryOnUnderflow = TRUE
 ) {
   if (!is.numeric(stats::AIC(fit))) {
     cli::cli_alert_danger(
@@ -505,7 +518,35 @@ runSCM <- function(
   reportDir <- if (saveModels) outputDir else NULL
 
   effective_rx_threads <- nlmixr2utils::resolveRxThreads(workers, rxThreads)
-  nlmixr2utils::.withWorkerPlan(workers, rxThreads = effective_rx_threads, {
+
+  # Settings that shaped the search, kept on the result for summary().
+  scmOptions <- list(
+    searchType = searchType,
+    pVal = pVal,
+    estimation = fit$est,
+    control = ctrl_lbl,
+    candidates = pairs,
+    includedRelations = included_pairs,
+    shapes = shapes,
+    centers = centers,
+    catCutoff = catCutoff,
+    profileInit = profileInit,
+    profileInitOnStall = profileInitOnStall,
+    stallTol = stallTol,
+    maxRetries = maxRetries,
+    maxDeltaOFV = maxDeltaOFV,
+    retryPerturbSD = retryPerturbSD,
+    retrySmallInit = retrySmallInit,
+    retryOFVTolerance = .resolveOFVTolerance(fit, retryOFVTolerance),
+    retryFailOnExhaustion = retryFailOnExhaustion,
+    retryOnUnderflow = retryOnUnderflow,
+    workers = workers,
+    rxThreads = effective_rx_threads,
+    saveModels = saveModels,
+    restart = restart
+  )
+
+  res <- nlmixr2utils::.withWorkerPlan(workers, rxThreads = effective_rx_threads, {
     # nolint: object_usage_linter.
     if (searchType == "scm") {
       resFwd <- forwardSearch(
@@ -528,7 +569,8 @@ runSCM <- function(
         retrySmallInit = retrySmallInit,
         retryOFVTolerance = retryOFVTolerance,
         retryFailOnExhaustion = retryFailOnExhaustion,
-        rxThreads = effective_rx_threads
+        rxThreads = effective_rx_threads,
+        retryOnUnderflow = retryOnUnderflow
       )
       resBck <- backwardSearch(
         pairs,
@@ -588,7 +630,8 @@ runSCM <- function(
         retrySmallInit = retrySmallInit,
         retryOFVTolerance = retryOFVTolerance,
         retryFailOnExhaustion = retryFailOnExhaustion,
-        rxThreads = effective_rx_threads
+        rxThreads = effective_rx_threads,
+        retryOnUnderflow = retryOnUnderflow
       )
       data <- NULL # release temporary SCM dataset
       .printFinalSCMSummary(
@@ -640,6 +683,11 @@ runSCM <- function(
       list(summaryTable = resBck[[2]], resFwd = NULL, resBck = resBck)
     }
   })
+  res$baseFit <- fit
+  res$options <- scmOptions
+  res["outputDir"] <- list(reportDir) # keeps the element when NULL
+  class(res) <- c("nlmixr2scm", "list")
+  res
 }
 
 # -- Helpers -------------------------------------------------------------------
@@ -1869,12 +1917,14 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
 #' @param pchisqr          chi-squared p-value for the improvement
 #' @param maxDeltaOFV      user-specified ceiling on plausible absolute OFV change
 #' @param effective_tolerance margin added to ref_objf before criterion 1 fires
+#' @param retryOnUnderflow whether criterion 2 (p-value underflow) applies
 #' @return logical scalar
 #' @noRd
 .isUnrealisticOFV <- function(x_objf, ref_objf, dObjf, pchisqr,
-                               maxDeltaOFV, effective_tolerance) {
+                               maxDeltaOFV, effective_tolerance,
+                               retryOnUnderflow = TRUE) {
   x_objf > ref_objf + effective_tolerance ||
-    pchisqr < .Machine$double.eps ||
+    (retryOnUnderflow && pchisqr < .Machine$double.eps) ||
     abs(dObjf) > maxDeltaOFV
 }
 
@@ -1915,7 +1965,8 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
   retrySmallInit = 0.01,
   effective_tolerance = 0,
   retryFailOnExhaustion = FALSE,
-  rxThreads = NULL
+  rxThreads = NULL,
+  retryOnUnderflow = TRUE
 ) {
   raw_results <- nlmixr2utils::.plap(
     # nolint: object_usage_linter.
@@ -2153,7 +2204,8 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
         }
 
         if (!.isUnrealisticOFV(
-          x$objf, fit$objf, dObjf, pchisqr, maxDeltaOFV, effective_tolerance
+          x$objf, fit$objf, dObjf, pchisqr, maxDeltaOFV, effective_tolerance,
+          retryOnUnderflow
         )) {
           loop_result <- list(x = x, dObjf = dObjf, dof = dof, pchisqr = pchisqr)
           break
@@ -2166,7 +2218,7 @@ buildPairs <- function(varsVec = NULL, covarsVec = NULL, pairsVec = NULL) {
             if (effective_tolerance > 0) paste0(" + ", effective_tolerance) else "",
             ")"
           )
-        } else if (pchisqr < .Machine$double.eps) {
+        } else if (retryOnUnderflow && pchisqr < .Machine$double.eps) {
           paste0("p-value underflow (dOFV = ", round(dObjf, 3), ")")
         } else {
           paste0("|dOFV| (", round(abs(dObjf), 3), ") exceeds maxDeltaOFV (", maxDeltaOFV, ")")
@@ -2454,7 +2506,8 @@ forwardSearch <- function(
   retrySmallInit = 0.01,
   retryOFVTolerance = NULL,
   retryFailOnExhaustion = FALSE,
-  rxThreads = NULL
+  rxThreads = NULL,
+  retryOnUnderflow = TRUE
 ) {
   if (!inherits(fit, "nlmixr2FitCore")) {
     stop("'fit' needs to be a nlmixr2 fit")
@@ -2562,7 +2615,8 @@ forwardSearch <- function(
       retrySmallInit = retrySmallInit,
       effective_tolerance = effective_tolerance,
       retryFailOnExhaustion = retryFailOnExhaustion,
-      rxThreads = rxThreads
+      rxThreads = rxThreads,
+      retryOnUnderflow = retryOnUnderflow
     )
     if (length(results) == 0) {
       break

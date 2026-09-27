@@ -170,6 +170,7 @@ reference a covariate column — otherwise `nlme::getData(fit)` may drop it.
 | `retrySmallInit` | `0.01` | Near-zero covariate theta init used on even-numbered retries |
 | `retryOFVTolerance` | `NULL` | Margin by which candidate OFV must exceed the parent before retrying; auto-detected (`10` for SAEM, `0` otherwise) when `NULL` |
 | `retryFailOnExhaustion` | `FALSE` | Exclude a candidate as failed (instead of accepting the best retry) when all retries are exhausted |
+| `retryOnUnderflow` | `TRUE` | Treat a p-value underflow (OFV drop above ~70 at `df = 1`) as unrealistic and retry; set `FALSE` to skip the extra fits for genuinely strong effects |
 
 ---
 
@@ -249,6 +250,12 @@ scm <- runSCM(
 #> Warning: ! sex_female ~ v: unrealistic OFV on attempt 1/4: OFV increased vs parent
 #>   (443.426 > 442.679).
 #> ℹ Retrying with perturbed init.
+#> Warning: ! sex_female ~ v: unrealistic OFV on attempt 2/4: OFV increased vs parent
+#>   (443.212 > 442.679).
+#> ℹ Retrying with small init.
+#> Warning: ! sex_female ~ v: unrealistic OFV on attempt 3/4: OFV increased vs parent
+#>   (442.88 > 442.679).
+#> ℹ Retrying with perturbed init.
 #>                 step    covar var shape     objf deltObjf     AIC      BIC
 #> cov_wt_power_cl    1 wt_power  cl power 448.2978 5.619047 925.605 953.8086
 #>                 numParams  qchisqr    pchisqr included searchType
@@ -259,7 +266,7 @@ scm <- runSCM(
 #> ------------------------------------------------------------------------------------------- 
 #> Forward    1     wt_power~v [power]      475.089     449.113   -25.976     0.0000  Added
 #> Forward    2     wt_power~cl [power]     449.113     442.679    -6.434     0.0112  Added
-#> Forward    3     sex_female~v [cat]      442.679     440.288    -2.391     0.1221  Not selected
+#> Forward    3     sex_female~v [cat]      442.679     440.398    -2.281     0.1309  Not selected
 #> Backward   1     wt_power~cl [power]     442.679     448.298     5.619     0.0178  Removed
 #> Backward   2     wt_power~v [power]      448.298     474.521    26.223     0.0000  Retained
 #> Direction  Step  Relation                Ref OFV         OFV      dOFV    p-value  Decision 
@@ -273,11 +280,11 @@ scm <- runSCM(
 #> 
 #> Forward    2     wt_power~cl [power]     449.113     442.679    -6.434     0.0112  Added
 #> Forward    2     wt_lin~cl [lin]         449.113     444.150    -4.963     0.0259  Not selected
-#> Forward    2     sex_female~v [cat]      449.113     446.198    -2.915     0.0877  Not selected
+#> Forward    2     sex_female~v [cat]      449.113     445.844    -3.269     0.0706  Not selected
 #> Forward    2     sex_female~cl [cat]     449.113     448.984    -0.129     0.7190  Not selected
 #> 
-#> Forward    3     sex_female~v [cat]      442.679     440.288    -2.391     0.1221  Not selected
-#> Forward    3     sex_female~cl [cat]     442.679     441.174    -1.505     0.2199  Not selected
+#> Forward    3     sex_female~v [cat]      442.679     440.398    -2.281     0.1309  Not selected
+#> Forward    3     sex_female~cl [cat]     442.679     441.316    -1.362     0.2431  Not selected
 #> 
 #> Backward   1     wt_power~v [power]      442.679     470.173    27.494     0.0000  Retained
 #> Backward   1     wt_power~cl [power]     442.679     448.298     5.619     0.0178  Removed
@@ -289,12 +296,102 @@ scm <- runSCM(
 
 ### 6. Interpreting the results
 
-`runSCM()` returns a named list with three elements:
+`runSCM()` returns an object of class `"nlmixr2scm"`. Printing it gives a short
+overview:
+
+
+``` r
+scm
+#> ── nlmixr2scm result ───────────────────────────────────────────────────────────
+#> Search      : scm (focei), 6 candidate relations
+#> OFV         : base 475.089 -> final 448.298 (dOFV -26.792)
+#> Covariates  : wt_power~v [power]
+#> Saved to    : /path/to/project/fit_base_scm_1
+#> Use summary() for options, model comparison and step tables.
+```
+
+`summary()` gives the full human-readable report: the options used for the search, a
+comparison of the base, final forward and final backward models, the step and
+all-candidate tables, and where models and report files were saved on disk:
+
+
+``` r
+summary(scm)
+#> ── nlmixr2scm summary ──────────────────────────────────────────────────────────
+#> ── Options ─────────────────────────────────────────────────────────────────────
+#> Search type        : scm
+#> p-value fwd / bck  : 0.05 / 0.01
+#> Estimation         : focei; control: foceiControl (inherited from fit)
+#> Candidates         : 6: wt_power~cl [power], wt_lin~cl [lin], wt_power~v
+#>                      [power], wt_lin~v [lin], sex_female~cl [cat], sex_female~v
+#>                      [cat]
+#> Included relations : none
+#> Shapes             : power, lin
+#> Centers            : median of each continuous covariate
+#> Categorical cutoff : 0.05
+#> Profile warm-start : stalled candidates only (stallTol = 0)
+#> Retries            : up to 3; maxDeltaOFV = Inf; OFV tolerance = 0; p-value
+#>                      underflow retried; on exhaustion keep best attempt
+#> Parallel           : workers = 1; rxThreads per worker = 2
+#> Save models        : yes (restarted)
+#> ── Model comparison ────────────────────────────────────────────────────────────
+#>  Model          OFV     dOFV    AIC     BIC     Params
+#>  Base           475.089 0.000   950.397 975.075 7     
+#>  Forward final  442.679 -32.411 921.986 953.715 9     
+#>  Backward final 448.298 -26.792 925.605 953.809 8     
+#> 
+#> SCM covariates:
+#>   Base           : (none)
+#>   Forward final  : wt_power~v [power], wt_power~cl [power]
+#>   Backward final : wt_power~v [power]
+#> ── SCM Step Summary ────────────────────────────────────────────────────────────
+#> Direction  Step  Relation                Ref OFV         OFV      dOFV    p-value  Decision 
+#> ------------------------------------------------------------------------------------------- 
+#> Forward    1     wt_power~v [power]      475.089     449.113   -25.976     0.0000  Added
+#> Forward    2     wt_power~cl [power]     449.113     442.679    -6.434     0.0112  Added
+#> Forward    3     sex_female~v [cat]      442.679     440.398    -2.281     0.1309  Not selected
+#> Backward   1     wt_power~cl [power]     442.679     448.298     5.619     0.0178  Removed
+#> Backward   2     wt_power~v [power]      448.298     474.521    26.223     0.0000  Retained
+#> ── SCM All Candidates ──────────────────────────────────────────────────────────
+#> Direction  Step  Relation                Ref OFV         OFV      dOFV    p-value  Decision 
+#> ------------------------------------------------------------------------------------------- 
+#> Forward    1     wt_power~v [power]      475.089     449.113   -25.976     0.0000  Added
+#> Forward    1     wt_lin~v [lin]          475.089     450.010   -25.080     0.0000  Not selected
+#> Forward    1     sex_female~v [cat]      475.089     458.423   -16.666     0.0000  Not selected
+#> Forward    1     wt_power~cl [power]     475.089     470.203    -4.887     0.0271  Not selected
+#> Forward    1     wt_lin~cl [lin]         475.089     470.712    -4.378     0.0364  Not selected
+#> Forward    1     sex_female~cl [cat]     475.089     474.173    -0.917     0.3383  Not selected
+#> 
+#> Forward    2     wt_power~cl [power]     449.113     442.679    -6.434     0.0112  Added
+#> Forward    2     wt_lin~cl [lin]         449.113     444.150    -4.963     0.0259  Not selected
+#> Forward    2     sex_female~v [cat]      449.113     445.844    -3.269     0.0706  Not selected
+#> Forward    2     sex_female~cl [cat]     449.113     448.984    -0.129     0.7190  Not selected
+#> 
+#> Forward    3     sex_female~v [cat]      442.679     440.398    -2.281     0.1309  Not selected
+#> Forward    3     sex_female~cl [cat]     442.679     441.316    -1.362     0.2431  Not selected
+#> 
+#> Backward   1     wt_power~v [power]      442.679     470.173    27.494     0.0000  Retained
+#> Backward   1     wt_power~cl [power]     442.679     448.298     5.619     0.0178  Removed
+#> 
+#> Backward   2     wt_power~v [power]      448.298     474.521    26.223     0.0000  Retained
+#> ── Final model ─────────────────────────────────────────────────────────────────
+#> Retained:
+#> wt_power~v [power]
+#> ℹ Final model OFV: 448.298
+#> ────────────────────────────────────────────────────────────────────────────────
+#> ── Files ───────────────────────────────────────────────────────────────────────
+#> Output directory: /path/to/project/fit_base_scm_1
+#> Report files    : scm_log.txt, scm_step_summary.csv, scm_all_candidates.csv
+#> Saved models    : 9 files (.rds)
+```
+
+Underneath, the result is a named list:
 
 
 ``` r
 names(scm)
-#> [1] "summaryTable" "resFwd"       "resBck"
+#> [1] "summaryTable" "resFwd"       "resBck"       "baseFit"      "options"     
+#> [6] "outputDir"
 ```
 
 #### Summary table
@@ -322,9 +419,9 @@ print(scm$summaryTable[, cols])
 #> cov_wt_power_cl1      forward    2   wt_power  cl power  -6.4342868
 #> cov_wt_lin_cl1        forward    2     wt_lin  cl   lin  -4.9629385
 #> cov_sex_female_cl1    forward    2 sex_female  cl   cat  -0.1294283
-#> cov_sex_female_v1     forward    2 sex_female   v   cat  -2.9154553
-#> cov_sex_female_cl2    forward    3 sex_female  cl   cat  -1.5050508
-#> cov_sex_female_v2     forward    3 sex_female   v   cat  -2.3907770
+#> cov_sex_female_v1     forward    2 sex_female   v   cat  -3.2688731
+#> cov_sex_female_cl2    forward    3 sex_female  cl   cat  -1.3624840
+#> cov_sex_female_v2     forward    3 sex_female   v   cat  -2.2812182
 #> cov_wt_power_cl2     backward    1   wt_power  cl power   5.6190466
 #> cov_wt_power_v2      backward    1   wt_power   v power  27.4944709
 #> cov_wt_power_v1      backward    2   wt_power   v power  26.2227916
@@ -338,9 +435,9 @@ print(scm$summaryTable[, cols])
 #> cov_wt_power_cl1   1.119381e-02      yes
 #> cov_wt_lin_cl1     2.589617e-02       no
 #> cov_sex_female_cl1 7.190256e-01       no
-#> cov_sex_female_v1  8.773465e-02       no
-#> cov_sex_female_cl2 2.198959e-01       no
-#> cov_sex_female_v2  1.220529e-01       no
+#> cov_sex_female_v1  7.060611e-02       no
+#> cov_sex_female_cl2 2.431075e-01       no
+#> cov_sex_female_v2  1.309490e-01       no
 #> cov_wt_power_cl2   1.776631e-02  dropped
 #> cov_wt_power_v2    1.575443e-07 retained
 #> cov_wt_power_v1    3.042108e-07 retained
@@ -392,9 +489,9 @@ fwd_tbl
 #> cov_wt_power_cl1      2   wt_power  cl power 442.6788  -6.4342868 921.9859
 #> cov_wt_lin_cl1        2     wt_lin  cl   lin 444.1501  -4.9629385 923.4573
 #> cov_sex_female_cl1    2 sex_female  cl   cat 448.9836  -0.1294283 928.2908
-#> cov_sex_female_v1     2 sex_female   v   cat 446.1976  -2.9154553 925.5047
-#> cov_sex_female_cl2    3 sex_female  cl   cat 441.1737  -1.5050508 922.4809
-#> cov_sex_female_v2     3 sex_female   v   cat 440.2880  -2.3907770 921.5951
+#> cov_sex_female_v1     2 sex_female   v   cat 445.8442  -3.2688731 925.1513
+#> cov_sex_female_cl2    3 sex_female  cl   cat 441.3163  -1.3624840 922.6234
+#> cov_sex_female_v2     3 sex_female   v   cat 440.3975  -2.2812182 921.7047
 #>                         BIC numParams  qchisqr      pchisqr included searchType
 #> cov_wt_power_cl    975.7135         8 3.841459 2.706448e-02       no    forward
 #> cov_wt_lin_cl      976.2226         8 3.841459 3.641438e-02       no    forward
@@ -405,9 +502,9 @@ fwd_tbl
 #> cov_wt_power_cl1   953.7150         9 3.841459 1.119381e-02      yes    forward
 #> cov_wt_lin_cl1     955.1863         9 3.841459 2.589617e-02       no    forward
 #> cov_sex_female_cl1 960.0198         9 3.841459 7.190256e-01       no    forward
-#> cov_sex_female_v1  957.2338         9 3.841459 8.773465e-02       no    forward
-#> cov_sex_female_cl2 957.7354        10 3.841459 2.198959e-01       no    forward
-#> cov_sex_female_v2  956.8497        10 3.841459 1.220529e-01       no    forward
+#> cov_sex_female_v1  956.8804         9 3.841459 7.060611e-02       no    forward
+#> cov_sex_female_cl2 957.8780        10 3.841459 2.431075e-01       no    forward
+#> cov_sex_female_v2  956.9592        10 3.841459 1.309490e-01       no    forward
 #>                             covNames  covarEffect bsvReduction
 #> cov_wt_power_cl      cov_wt_power_cl  0.527569356   13.4824367
 #> cov_wt_lin_cl          cov_wt_lin_cl  0.007405764   13.8607798
@@ -418,9 +515,9 @@ fwd_tbl
 #> cov_wt_power_cl1     cov_wt_power_cl  0.584437702   17.2747592
 #> cov_wt_lin_cl1         cov_wt_lin_cl  0.004636182   12.8092199
 #> cov_sex_female_cl1 cov_sex_female_cl -0.104984340   -5.5881667
-#> cov_sex_female_v1   cov_sex_female_v -0.077788608   61.3750391
-#> cov_sex_female_cl2 cov_sex_female_cl  0.203103122    3.8536191
-#> cov_sex_female_v2   cov_sex_female_v -0.146951841   35.4468686
+#> cov_sex_female_v1   cov_sex_female_v -0.128347020   55.8389186
+#> cov_sex_female_cl2 cov_sex_female_cl  0.144149022    0.4603984
+#> cov_sex_female_v2   cov_sex_female_v -0.164344744   28.0074901
 ```
 
 #### Backward search detail
@@ -607,7 +704,10 @@ when its fit produces an implausible OFV — using a perturbed or near-zero cova
 init on alternate attempts — before falling back to the best attempt seen (or, with
 `retryFailOnExhaustion = TRUE`, excluding the candidate as failed). Stochastic
 estimators (SAEM) get a wider tolerance automatically to avoid spurious retries from
-Monte Carlo noise.
+Monte Carlo noise. A p-value that underflows to zero also counts as
+implausible by default, which means genuinely strong effects (an OFV drop above about
+70 for one parameter) are retried too; set `retryOnUnderflow = FALSE` to skip those
+extra fits.
 
 **Categorical covariates**: pass `catvarsVec` rather than pre-creating dummy columns.
 `runSCM()` handles level detection, reference-level selection, and indicator column

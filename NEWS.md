@@ -1,6 +1,23 @@
-# nlmixr2scm (development version)
+# nlmixr2scm 0.4.1
 
-* Fixed the forward search mixing two `dOFV` sign conventions. Since 0.3,
+* `runSCM()` results now have class `"nlmixr2scm"`, with new `summary()` and
+  `print()` methods. `summary()` reports the options used for the search, a
+  comparison of the base, final forward and final backward models (OFV, dOFV,
+  AIC, BIC, parameter count and SCM covariates), the step and all-candidate
+  tables, and the location of saved models and report files on disk.
+  `print()` gives a short overview. The result gains `baseFit`, `options`
+  and `outputDir` elements; the existing `summaryTable`, `resFwd` and
+  `resBck` elements are unchanged.
+
+* `runSCM()` gained a `retryOnUnderflow` argument (default `TRUE`, appended
+  as the last parameter to preserve positional calls). The retry mechanism
+  treats a forward candidate whose p-value underflows to zero as an
+  unrealistic OFV; for `df = 1` that is any OFV drop above about 70, so
+  genuinely strong covariate effects were always retried. Set
+  `retryOnUnderflow = FALSE` to skip that criterion and the extra fits; the
+  OFV-increase and `maxDeltaOFV` criteria are unaffected.
+
+* Fixed a bug in the forward search mixing two `dOFV` sign conventions. Since 0.3,
   `dOFV` is `candidate OFV - reference OFV` (negative = improvement), but the
   profile-on-stall rescue, retry best-attempt tracking and p-value tie-break
   still assumed the pre-0.3 "positive = improvement" sign. As a result:

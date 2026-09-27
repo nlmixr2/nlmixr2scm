@@ -31,6 +31,14 @@ knitr::opts_chunk$set(error = FALSE)
 
 knitr::knit("runSCM.Rmd.orig", output = "runSCM.Rmd")
 
+# print()/summary() report the absolute output directory; replace the local
+# working-directory prefix so no machine-specific path ships in the vignette.
+rmd <- readLines("runSCM.Rmd", encoding = "UTF-8")
+for (prefix in paste0(normalizePath(getwd()), c("\\", "/"))) {
+  rmd <- gsub(prefix, "/path/to/project/", rmd, fixed = TRUE)
+}
+writeLines(rmd, "runSCM.Rmd", useBytes = TRUE)
+
 # The vignette demonstrates saveModels = TRUE, which writes a fitted-model
 # cache into the working directory.  Those artifacts are a by-product of
 # precomputation, not vignette source, so drop them.

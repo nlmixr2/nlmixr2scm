@@ -68,7 +68,9 @@ such candidates (up to `maxRetries`, default 3) using a perturbed or near-zero
 covariate initial estimate on each attempt, then keeps the best attempt seen
 across all retries rather than whichever happened to run last. Stochastic
 estimators (SAEM) get a wider OFV tolerance automatically, since Monte Carlo
-noise alone would otherwise trigger spurious retries.
+noise alone would otherwise trigger spurious retries. A p-value that underflows
+to zero is treated as implausible by default, so very strong effects are retried
+too; set `retryOnUnderflow = FALSE` to skip those extra fits.
 
 **Fixed covariate centers.** By default, the `"power"` and `"lin"` shapes
 center on each dataset's observed median, which can drift between datasets fit
@@ -148,6 +150,8 @@ scm <- runSCM(
   confirm = FALSE
 )
 
+scm                  # short overview
+summary(scm)         # options, model comparison, step tables, files on disk
 scm$summaryTable
 scm$resBck[[1]]$parFixedDf
 ```
