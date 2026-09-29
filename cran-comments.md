@@ -13,7 +13,7 @@ misleading results, hence the quick update. The release also adds a
 
 * Local: Windows 11 x64, R 4.6.1
 * devtools::check_win_devel()
-* rhub::rhub_check() (r-devel on ubuntu-latest)
+* rhub::rhub_check(): R-devel on linux, windows and macos-arm64
 
 ## R CMD check results
 
@@ -22,7 +22,7 @@ misleading results, hence the quick update. The release also adds a
 ```
 * checking CRAN incoming feasibility ... NOTE
 Maintainer: 'Justin Wilkins <justin.wilkins@occams.com>'
-Days since last update: <n>
+Days since last update: 5
 ```
 
 The short interval since 0.4 (published 2026-09-24) is explained above.
