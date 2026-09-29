@@ -18,12 +18,7 @@
 #'   SCM \code{covariates} it contains), \code{summaryTable}, \code{options},
 #'   \code{outputDir} and \code{finalFit}.  The \code{print()} methods return
 #'   their input invisibly.
-#' @examples
-#' \dontrun{
-#' scm <- runSCM(fit, varsVec = c("cl", "v"), covarsVec = "wt")
-#' scm           # short overview
-#' summary(scm)  # full report
-#' }
+#' @inherit runSCM examples
 #' @export
 summary.nlmixr2scm <- function(object, ...) {
   st <- object$summaryTable

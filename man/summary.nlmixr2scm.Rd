@@ -37,9 +37,50 @@ were saved on disk (if anywhere).  \code{print()} on the \code{runSCM()}
 result itself gives a short overview.
 }
 \examples{
-\dontrun{
-scm <- runSCM(fit, varsVec = c("cl", "v"), covarsVec = "wt")
-scm           # short overview
-summary(scm)  # full report
+\dontshow{if (requireNamespace("nlmixr2data", quietly = TRUE)) withAutoprint(\{ # examplesIf}
+\donttest{
+# Fitting the base model and running even a one-pair search takes longer
+# than a few seconds, so this example is wrapped in \donttest{}.
+one.cmt <- function() {
+  ini({
+    tka <- 0.45
+    label("Ka")
+    tcl <- log(c(0, 2.7, 100))
+    label("Cl")
+    tv <- 3.45
+    label("V")
+    eta.ka ~ 0.6
+    eta.cl ~ 0.3
+    eta.v ~ 0.1
+    add.sd <- 0.7
+  })
+  model({
+    ka <- exp(tka + eta.ka)
+    cl <- exp(tcl + eta.cl)
+    v <- exp(tv + eta.v)
+    linCmt() ~ add(add.sd)
+  })
 }
+
+fit <- nlmixr2est::nlmixr2(
+  one.cmt, nlmixr2data::theo_sd,
+  est = "focei", control = nlmixr2est::foceiControl(print = 0)
+)
+
+# Test one parameter-covariate pair.  saveModels = FALSE keeps the search
+# from writing anything to disk.
+res <- runSCM(fit,
+  pairsVec = list(list(var = "cl", covar = "WT", shapes = "power")),
+  searchType = "forward",
+  saveModels = FALSE,
+  confirm = FALSE,
+  print = 0,
+  workers = 1L,
+  rxThreads = 2L
+)
+res                # short overview
+summary(res)       # options, model comparison, step tables, files
+res$summaryTable
+}
+\dontshow{\}) # examplesIf}
 }

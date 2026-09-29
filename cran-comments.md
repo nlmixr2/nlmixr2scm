@@ -1,10 +1,19 @@
+## Update to 0.4.1
+
+This is a patch release shortly after 0.4 (published 2026-09-24). It fixes a
+correctness bug in 0.4: the forward search mixed two sign conventions for
+the change in objective function value. As a result, every forward candidate
+was needlessly refitted (roughly tripling run time), a worse refit could
+replace a better fit, and the reported summary tables were internally
+inconsistent. We would rather not leave users on a release that can report
+misleading results, hence the quick update. The release also adds a
+`retryOnUnderflow` argument and `summary()`/`print()` methods for results.
+
 ## Test environments
 
 * Local: Windows 11 x64, R 4.6.1
-
-<!-- Before submitting, add results from at least:
-     devtools::check_win_devel(), devtools::check_win_release(),
-     and a macOS / Linux run (e.g. rhub::rhub_check() or GitHub Actions). -->
+* devtools::check_win_devel()
+* rhub::rhub_check() (r-devel on ubuntu-latest)
 
 ## R CMD check results
 
@@ -13,26 +22,24 @@
 ```
 * checking CRAN incoming feasibility ... NOTE
 Maintainer: 'Justin Wilkins <justin.wilkins@occams.com>'
-New submission
+Days since last update: <n>
 ```
 
-This is a new submission.
+The short interval since 0.4 (published 2026-09-24) is explained above.
 
-With `--run-donttest` there is a second note:
+## Reverse dependencies
 
-```
-* checking examples ... NOTE
-Examples with CPU (user + system) or elapsed time > 5s
-       user system elapsed
-runSCM  8.3   1.09   21.17
-```
+There are no reverse dependencies on CRAN.
 
-`runSCM()` performs a stepwise covariate search, so its example has to fit a
-base population model and then fit one candidate model per step. There is no
-way to exercise the function meaningfully in under 5 seconds. The example has
-been kept as small as is still representative (one parameter-covariate pair,
-forward direction only, two threads), and the complete check still runs in
-about one minute.
+## Example timing
+
+With `--run-donttest`, the examples for `runSCM()` and `summary.nlmixr2scm()`
+(which shares the same example) may exceed 5 seconds. `runSCM()` performs a
+stepwise covariate search, so its example has to fit a base population model
+and then fit one candidate model per step. There is no way to exercise the
+function meaningfully in under 5 seconds. The example has been kept as small
+as is still representative (one parameter-covariate pair, forward direction
+only, two threads) and is wrapped in `\donttest{}`.
 
 ## Method references
 

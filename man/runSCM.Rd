@@ -325,6 +325,8 @@ res <- runSCM(fit,
   workers = 1L,
   rxThreads = 2L
 )
+res                # short overview
+summary(res)       # options, model comparison, step tables, files
 res$summaryTable
 }
 \dontshow{\}) # examplesIf}
