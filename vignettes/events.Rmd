@@ -1,0 +1,200 @@
+---
+title: "nlmixr2scm events"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{nlmixr2scm events}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+has_bus <- exists("rxEventListen", asNamespace("rxode2"))
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = has_bus
+)
+```
+
+```{r no-bus, echo = FALSE, eval = !has_bus, results = "asis"}
+cat(
+  "> **Note:** the installed rxode2 has no event bus, so the code in this",
+  "vignette is shown but not run.  `runSCM()` works as usual; it simply",
+  "emits no events.\n"
+)
+```
+
+## The rxode2 event bus
+
+rxode2 provides a small event bus: packages *emit* named events with a
+payload, and any package can *listen* for them with
+`rxode2::rxEventListen()`.  See `?rxode2::rxEventListen` for the full API.
+
+Events are delivered only by the outermost operation.  Each emitting
+function opens a scope, and anything emitted while a scope is open (a fit
+run inside another fit, a solve inside a simulation, and so on) is dropped.
+The scope depth is mirrored in the `RXODE2_EVENT_DEPTH` environment
+variable, so worker processes started inside a scope stay silent too.
+
+The main consumer is [nlmixr2log](https://github.com/nlmixr2/nlmixr2log),
+which records fits and their results, but any package can listen.  Without
+a listener nothing happens, and with an rxode2 that lacks the bus
+nlmixr2scm emits nothing at all.
+
+## What `runSCM()` emits
+
+A stepwise covariate search fits dozens or hundreds of candidate models.
+Without special handling a logger would record one run per candidate.
+Instead, `runSCM()` opens an event scope as soon as it starts, so every
+candidate fit (in this process or in parallel workers started through
+`future`) is silent.  When `runSCM()` returns it emits, in this order:
+
+1. one `fitResult` event, attaching a small SCM summary to the **base**
+   fit, and
+2. when the search selected a model other than the base model, one
+   `fitComplete` event for the **selected** model, linked to the base fit.
+
+### `fitResult` (kind `"scm"`)
+
+| Field    | Value                                                                  |
+|----------|------------------------------------------------------------------------|
+| `fit`    | The base fit passed to `runSCM()` as `fit`.                            |
+| `result` | An `"nlmixr2scmSummary"` object (see below); it holds no fitted models. |
+| `kind`   | `"scm"`.                                                               |
+| `call`   | The `runSCM()` call, normalized by rxode2 (large values replaced by `<value>`). |
+
+The `result` summary is a list with:
+
+| Element        | Content                                                                 |
+|----------------|-------------------------------------------------------------------------|
+| `summaryTable` | The per-step table (a `data.frame`), the same as `summaryTable` of the `runSCM()` result. |
+| `finalModel`   | The selected model's function as text (`NA` if it cannot be deparsed or no model was selected). |
+| `outputDir`    | The output directory of the run (or `NULL`).                            |
+
+### `fitComplete` (source `"scm"`)
+
+| Field     | Value                                                                  |
+|-----------|------------------------------------------------------------------------|
+| `fit`     | The selected model: the backward-elimination result, or the forward-inclusion result for `searchType = "forward"`. |
+| `object`  | The base fit, so a logger can link the selected model to it.          |
+| `call`    | The `runSCM()` call, normalized as above.                              |
+| `objName` | `NULL`.                                                                |
+| `source`  | `"scm"`.                                                               |
+
+### What is not emitted
+
+* **Candidate fits.**  Every forward and backward candidate, including
+  retries and refits, runs inside `runSCM()`'s scope and reports nothing.
+* **A selected model identical to the base fit.**  When the search keeps
+  the base model, only the `fitResult` is emitted.
+* **Errors and cancellations.**  If `runSCM()` stops with an error, or the
+  user declines the `confirm` prompt, nothing is emitted (the scope is still
+  closed).
+* **A base fit that is not an nlmixr2 fit,** or a summary that cannot be
+  built: the scope is closed and nothing is emitted.
+
+When `runSCM()` itself is called inside another operation's scope (for
+example from a wrapper that opens its own scope), it is silent as well;
+only the outermost operation reports.
+
+## Listening
+
+A listener is a function `function(event, ...)`; the payload fields arrive
+as named arguments.  This one records every event it sees:
+
+```{r listen}
+events <- list()
+rxode2::rxEventListen("demo", function(event, ...) {
+  events[[length(events) + 1L]] <<- list(event = event, payload = list(...))
+})
+rxode2::rxEventListeners()
+```
+
+Only work at scope depth 0 reaches the listener.  Here an emission inside
+`rxEventScope()` (the way `runSCM()`'s candidate fits run) is dropped,
+while one at the top level is delivered:
+
+```{r depth}
+rxode2::rxEventDepth()
+rxode2::rxEventScope(rxode2::rxEventEmit("fitResult", kind = "inner"))
+rxode2::rxEventEmit("fitResult", kind = "outer")
+vapply(events, function(e) e$payload$kind, character(1))
+events <- list()
+```
+
+A real search is too slow to run in this vignette, so the next chunks are
+shown but not run.  With the listener in place, a search records exactly
+the events described above:
+
+```{r scm, eval = FALSE}
+library(nlmixr2scm)
+
+one.cmt <- function() {
+  ini({
+    tka <- log(1.5)
+    tcl <- log(0.04)
+    tv <- log(0.5)
+    eta.ka ~ 0.5
+    eta.cl ~ 0.2
+    eta.v ~ 0.1
+    prop.err <- 0.1
+  })
+  model({
+    ka <- exp(tka + eta.ka)
+    cl <- exp(tcl + eta.cl)
+    v <- exp(tv + eta.v)
+    linCmt() ~ prop(prop.err)
+  })
+}
+base <- nlmixr2est::nlmixr2(
+  one.cmt, nlmixr2data::theo_sd, est = "focei",
+  control = nlmixr2est::foceiControl(print = 0, calcTables = TRUE)
+)
+events <- list() # drop the base fit's own fitComplete (from nlmixr2est)
+
+res <- runSCM(
+  fit = base,
+  pairsVec = list(list(var = "cl", covar = "WT", shapes = "power")),
+  searchType = "backward",
+  includedRelations = list(list(var = "cl", covar = "WT", shapes = "power")),
+  saveModels = FALSE
+)
+
+vapply(events, `[[`, character(1), "event")
+#> [1] "fitResult"   "fitComplete"
+```
+
+The summary and the link to the base fit:
+
+```{r scm-inspect, eval = FALSE}
+summ <- events[[1]]$payload
+summ$kind
+#> [1] "scm"
+identical(summ$fit, base)
+#> [1] TRUE
+summ$result$summaryTable
+cat(summ$result$finalModel)
+
+sel <- events[[2]]$payload
+sel$source
+#> [1] "scm"
+identical(sel$object, base)
+#> [1] TRUE
+identical(sel$fit, res$resBck[[1]])
+#> [1] TRUE
+```
+
+Remove the listener when done:
+
+```{r unlisten}
+rxode2::rxEventUnlisten("demo")
+rxode2::rxEventListeners()
+```
+
+## Full logging
+
+For persistent logging of fits, SCM summaries and selected models, use
+[nlmixr2log](https://github.com/nlmixr2/nlmixr2log).  It listens on this
+bus, stores one result for the SCM search on the base fit's run, and one
+run for the selected model linked to it, rather than one run per
+candidate.
