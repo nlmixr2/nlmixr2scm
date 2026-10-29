@@ -1,3 +1,13 @@
+# nlmixr2scm (development version)
+
+* `runSCM()` now runs its candidate fits silently on the rxode2 event bus
+  (when rxode2 has one) and on exit emits one `fitResult` (kind `"scm"`) for
+  the base fit with a small summary (step table, selected model, output
+  directory) and, when a different model was selected, one `fitComplete` for
+  it linked to the base fit (`source = "scm"`).  A logger such as nlmixr2log
+  then stores one result and one selected-model run instead of a run per
+  candidate.  Nothing changes without a listener.
+
 # nlmixr2scm 0.4.1
 
 * `runSCM()` results now have class `"nlmixr2scm"`, with new `summary()` and

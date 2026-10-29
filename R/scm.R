@@ -288,6 +288,13 @@ runSCM <- function(
   rxThreads = NULL,
   retryOnUnderflow = TRUE
 ) {
+  ## event bus: candidate fits are silent; on exit one summary and the
+  ## selected model (see rxEvents.R).  `fit` is captured before the body runs.
+  force(fit)
+  .evFit <- fit
+  .scmEventEnter()
+  .evCall <- sys.call()
+  on.exit(.scmEventExit(returnValue(), .evFit, .evCall), add = TRUE)
   if (!is.numeric(stats::AIC(fit))) {
     cli::cli_alert_danger(
       "the 'fit' object needs to have an objective function value associated with it"
